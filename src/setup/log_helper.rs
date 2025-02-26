@@ -21,24 +21,15 @@ use log4rs::{
 };
 
 
-pub fn setup_log (data_folder: &PathBuf, source_file_name : &String) -> Result<log4rs::Handle, AppError> {
-    let log_file_path = get_log_file_path(data_folder, source_file_name);
+pub fn setup_log (data_folder: &PathBuf, dl_type: usize) -> Result<log4rs::Handle, AppError> {
+    let log_file_path = get_log_file_path(data_folder, dl_type);
     config_log (&log_file_path)
 }
 
-fn get_log_file_path(data_folder: &PathBuf, source_file_name : &String) -> PathBuf {
+fn get_log_file_path(data_folder: &PathBuf, dl_type: usize) -> PathBuf {
     
-    // Derives the log file name, returns the full path
-
     let datetime_string = Local::now().format("%m-%d %H%M%S").to_string();
-    let mut log_file_name = format!("ror {} ", datetime_string);
-    if source_file_name != "" {
-        let source_file = &source_file_name[..(source_file_name.len() - 5)];
-        log_file_name = format!("{} from {}.log", log_file_name, source_file);
-    }
-    else {
-        log_file_name = format!("{} initialisation.log", log_file_name);
-    }
+    let log_file_name = format!("WHO DL ({}) {} ", dl_type, datetime_string);
     [data_folder, &PathBuf::from(&log_file_name)].iter().collect()
     
 }
@@ -88,24 +79,19 @@ pub fn log_startup_params (ip : &InitParams) {
     info!("");
     info!("************************************");
     info!("");
-    info!("data_folder: {}", ip.data_folder.display());
-    info!("log_folder: {}", ip.log_folder.display());
-    info!("output_folder: {}", ip.output_folder.display());
-    info!("source_file_name: {}", ip.source_file_name);
-    info!("data_version: {}", ip.data_version);
-    info!("data_date: {}", ip.data_date);
-    info!("create config table: {}", ip.flags.create_config);
-    info!("create look up tables: {}", ip.flags.create_lookups);
-    info!("create summary tables: {}", ip.flags.create_summary);
-    info!("import_ror: {}", ip.flags.import_ror);
-    info!("process_data: {}", ip.flags.process_data);
-    info!("export_text: {}", ip.flags.export_text);
-    info!("export_csv: {}", ip.flags.export_csv);
-    info!("export_all_csv: {}", ip.flags.export_full_csv);
+    info!("download type: {}", ip.dl_type.to_string());
+    info!("full DL file stem: {}", ip.full_file_stem);
+    info!("full DL file num: {}", ip.full_file_num.to_string());
+    info!("(previous) last file imported: {}", ip.last_file_imported);
+    info!("target file: {:?}", ip.target);
+    info!("csv data path: {:?}", ip.csv_data_path);
+    info!("csv full data path: {:?}", ip.csv_full_path);
+    info!("json data parth: {:?}", ip.json_data_path);
+    info!("log folder path: {:?}", ip.log_folder_path);
+
     info!("");
     info!("************************************");
     info!("");
-
 }
 
 pub fn write_config (config_string: &String) {

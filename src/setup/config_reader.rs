@@ -15,16 +15,19 @@ pub struct TomlConfig {
 
 #[derive(Debug, Deserialize)]
 pub struct TomlDataPars {
-    pub src_file_name: Option<String>,
-    pub data_version: Option<String>,
-    pub data_date: Option<String>,
+    pub full_file_stem: Option<String>,
+    pub full_file_num: Option<String>,
+    pub last_file_imported: Option<String>,
+    pub target_file: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct TomlFolderPars {
-    pub data_folder_path: Option<String>,
+    pub csv_data_path: Option<String>,
+    pub csv_full_path: Option<String>,
+    pub json_data_path: Option<String>,
     pub log_folder_path: Option<String>,
-    pub output_folder_path: Option<String>,
+
 }
 
 #[derive(Debug, Deserialize)]
@@ -44,15 +47,17 @@ pub struct Config {
 }
 
 pub struct DataPars {
-    pub src_file_name: String,
-    pub data_version: String,
-    pub data_date: String,
+    pub full_file_stem: String,
+    pub full_file_num: usize,
+    pub last_file_imported: String,
+    pub target_file: String,
 }
 
 pub struct FolderPars {
-    pub data_folder_path: PathBuf,
+    pub csv_data_path: PathBuf,
+    pub csv_full_path: PathBuf,
+    pub json_data_path: PathBuf,
     pub log_folder_path: PathBuf,
-    pub output_folder_path: PathBuf,
 }
 
 #[derive(Debug, Clone)]
@@ -72,17 +77,10 @@ pub fn populate_config_vars(config_string: &String) -> Result<Config, AppError> 
         .map_err(|_| {AppError::ConfigurationError("Unable to parse config file.".to_string(),
                                        "File (app_config.toml) may be malformed.".to_string())})?;
 
-
     let toml_data_details = match toml_config.data {
         Some(d) => d,
-        None => {
-            println!("Data details section not found in config file.");
-            TomlDataPars {
-                src_file_name: None,
-                data_version: None,
-                data_date: None,
-            }
-        },
+        None => {return Result::Err(AppError::ConfigurationError("Missing or misspelt configuration section.".to_string(),
+        "Cannot find a section called '[data]'.".to_string()))},
     };
 
     let toml_database = match toml_config.database {
@@ -110,43 +108,40 @@ pub fn populate_config_vars(config_string: &String) -> Result<Config, AppError> 
     })
 }
 
-
 fn verify_data_parameters(toml_data_pars: TomlDataPars) -> Result<DataPars, AppError> {
 
-    let data_version = match toml_data_pars.data_version {
-        Some(s) => s.trim().to_string(),
-        None => "".to_string(),
-    };
+    let full_file_stem = check_defaulted_string (toml_data_pars.full_file_stem, "full DL file stem", "ICTRPFullExport ", "ICTRPFullExport ");
 
-    let data_date = match toml_data_pars.data_date {
-        Some(s) => s.trim().to_string(),
-        None => "".to_string(),
-    };
+    let full_file_num_as_string = check_defaulted_string (toml_data_pars.full_file_num, "full DL file num", "zero", "0");
+    let full_file_num: usize = full_file_num_as_string.parse().unwrap_or_else(|_| 0);
+    
+    let last_file_imported = check_defaulted_string (toml_data_pars.last_file_imported, "last file imported", "empty string", "");
 
-    let src_file_name =  match toml_data_pars.src_file_name {
-        Some(s) => s.trim().to_string(),
-        None => "".to_string(),
-    };
+    let target_file = check_defaulted_string (toml_data_pars.target_file, "single target file", "empty string", "");
         
     Ok(DataPars {
-        src_file_name,
-        data_version,
-        data_date,
+        full_file_stem,
+        full_file_num,
+        last_file_imported,
+        target_file,
     })
 }
 
 fn verify_folder_parameters(toml_folders: TomlFolderPars) -> Result<FolderPars, AppError> {
 
-    let data_folder_string = check_essential_string (toml_folders.data_folder_path, "data path folder", "data_folder_path")?;
+    let csv_data_path_string = check_defaulted_string (toml_folders.csv_data_path, "csv data path", "csv_data_path", "");
 
-    let log_folder_string = check_defaulted_string (toml_folders.log_folder_path, "log folder", "data_folder_path", &data_folder_string);
+    let csv_full_path_string = check_defaulted_string (toml_folders.csv_full_path, "csv full download path", "csv_data_path", &csv_data_path_string);
 
-    let output_folder_string = check_defaulted_string (toml_folders.output_folder_path, "outputs folder", "data_folder_path", &data_folder_string);
+    let json_data_path_string = check_essential_string (toml_folders.json_data_path, "json outputs parents folder", "json_data_path")?;
+
+    let log_folder_path_string = check_essential_string (toml_folders.log_folder_path, "log folder", "log_folder_path")?;
 
     Ok(FolderPars {
-        data_folder_path: PathBuf::from(data_folder_string),
-        log_folder_path: PathBuf::from(log_folder_string),
-        output_folder_path: PathBuf::from(output_folder_string),
+        csv_data_path: PathBuf::from(csv_data_path_string),
+        csv_full_path: PathBuf::from(csv_full_path_string),
+        json_data_path: PathBuf::from(json_data_path_string),
+        log_folder_path: PathBuf::from(log_folder_path_string),
     })
 }
 
@@ -164,7 +159,7 @@ fn verify_db_parameters(toml_database: TomlDBPars) -> Result<DBPars, AppError> {
     let db_port_as_string = check_defaulted_string (toml_database.db_port, "DB port", "5432", "5432");
     let db_port: usize = db_port_as_string.parse().unwrap_or_else(|_| 5432);
 
-    let db_name = check_defaulted_string (toml_database.db_name, "DB name", "ror", "ror");
+    let db_name = check_defaulted_string (toml_database.db_name, "DB name", "mon", "mon");
 
     Ok(DBPars {
         db_host,
@@ -240,7 +235,7 @@ pub fn fetch_db_conn_string(db_name: &String) -> Result<String, AppError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     // Ensure the parameters are being correctly extracted from the config file string
     
     #[test]
@@ -248,37 +243,42 @@ mod tests {
 
         let config = r#"
 [data]
-data_version="v99"
-data_date="2026-06-15"
-src_file_name="v1.59-2025-01-23-ror-data_schema_v2.json"
+full_file_stem = "ICTRPFullExport "
+full_file_num = "22"
+last_file_imported = "20250106 ICTRP.csv"
+target_file = "20250210 ICTRP.csv"
 
 [folders]
-data_folder_path="E:/MDR source data/ROR/data"
-log_folder_path="E:/MDR source data/ROR/logs"
-output_folder_path="E:/MDR source data/ROR/outputs"
+csv_data_path="E:/MDR source data/WHO/data"
+csv_full_path="E:/MDR source data/WHO/data/Full export 2025-02"
+json_data_path="E:/MDR source files"
+log_folder_path="E:/MDR/MDR Logs"
 
 [database]
 db_host="localhost"
 db_user="user_name"
 db_password="password"
 db_port="5433"
-db_name="ror"
+db_name="mon"
 "#;
         let config_string = config.to_string();
         let res = populate_config_vars(&config_string).unwrap();
-        assert_eq!(res.folders.data_folder_path, PathBuf::from("E:/MDR source data/ROR/data"));
-        assert_eq!(res.folders.log_folder_path, PathBuf::from("E:/MDR source data/ROR/logs"));
-        assert_eq!(res.folders.output_folder_path, PathBuf::from("E:/MDR source data/ROR/outputs"));
 
-        assert_eq!(res.data_details.src_file_name, "v1.59-2025-01-23-ror-data_schema_v2.json");
-        assert_eq!(res.data_details.data_version, "v99");
-        assert_eq!(res.data_details.data_date, "2026-06-15");
+        assert_eq!(res.folders.csv_data_path, PathBuf::from("E:/MDR source data/WHO/data"));
+        assert_eq!(res.folders.csv_full_path, PathBuf::from("E:/MDR source data/WHO/data/Full export 2025-02"));
+        assert_eq!(res.folders.json_data_path, PathBuf::from("E:/MDR source files"));
+        assert_eq!(res.folders.log_folder_path, PathBuf::from("E:/MDR/MDR Logs"));
+
+        assert_eq!(res.data_details.full_file_stem, "ICTRPFullExport ");
+        assert_eq!(res.data_details.full_file_num, 22);
+        assert_eq!(res.data_details.last_file_imported, "20250106 ICTRP.csv");
+        assert_eq!(res.data_details.target_file, "20250210 ICTRP.csv");
 
         assert_eq!(res.db_pars.db_host, "localhost");
         assert_eq!(res.db_pars.db_user, "user_name");
         assert_eq!(res.db_pars.db_password, "password");
         assert_eq!(res.db_pars.db_port, 5433);
-        assert_eq!(res.db_pars.db_name, "ror");
+        assert_eq!(res.db_pars.db_name, "mon");
     }
     
 
@@ -286,162 +286,138 @@ db_name="ror"
     fn check_config_with_win_folders() {
 
         let config = r#"
+
 [data]
-data_version="v99"
-data_date="2026-06-15"
-src_file_name="v1.59-2025-01-23-ror-data_schema_v2.json"
+full_file_stem = "ICTRPFullExport "
+full_file_num = "22"
+last_file_imported = "20250106 ICTRP.csv"
+target_file = "20250210 ICTRP.csv"
 
 [folders]
-data_folder_path="E:\\MDR source data\\ROR\\data"
-log_folder_path="E:\\MDR source data\\ROR\\logs"
-output_folder_path="E:\\MDR source data\\ROR\\outputs"
+csv_data_path="E:\\MDR source data\\WHO\\data"
+csv_full_path="E:\\MDR source data\\WHO\\data\\Full export 2025-02"
+json_data_path="E:\\MDR source files"
+log_folder_path="E:\\MDR\\MDR Logs"
 
 [database]
 db_host="localhost"
 db_user="user_name"
 db_password="password"
 db_port="5433"
-db_name="ror"
+db_name="mon"
 "#;
         let config_string = config.to_string();
         let res = populate_config_vars(&config_string).unwrap();
-        assert_eq!(res.folders.data_folder_path, PathBuf::from("E:/MDR source data/ROR/data"));
-        assert_eq!(res.folders.log_folder_path, PathBuf::from("E:/MDR source data/ROR/logs"));
-        assert_eq!(res.folders.output_folder_path, PathBuf::from("E:/MDR source data/ROR/outputs"));
 
-        assert_eq!(res.data_details.src_file_name, "v1.59-2025-01-23-ror-data_schema_v2.json");
-        assert_eq!(res.data_details.data_version, "v99");
-        assert_eq!(res.data_details.data_date, "2026-06-15");
+        assert_eq!(res.folders.csv_data_path, PathBuf::from("E:\\MDR source data\\WHO\\data"));
+        assert_eq!(res.folders.csv_full_path, PathBuf::from("E:\\MDR source data\\WHO\\data\\Full export 2025-02"));
+        assert_eq!(res.folders.json_data_path, PathBuf::from("E:\\MDR source files"));
+        assert_eq!(res.folders.log_folder_path, PathBuf::from("E:\\MDR\\MDR Logs"));
+
+        assert_eq!(res.data_details.full_file_stem, "ICTRPFullExport ");
+        assert_eq!(res.data_details.full_file_num, 22);
+        assert_eq!(res.data_details.last_file_imported, "20250106 ICTRP.csv");
+        assert_eq!(res.data_details.target_file, "20250210 ICTRP.csv");
 
         assert_eq!(res.db_pars.db_host, "localhost");
         assert_eq!(res.db_pars.db_user, "user_name");
         assert_eq!(res.db_pars.db_password, "password");
         assert_eq!(res.db_pars.db_port, 5433);
-        assert_eq!(res.db_pars.db_name, "ror");
+        assert_eq!(res.db_pars.db_name, "mon");
     }
 
 
     #[test]
-    fn check_config_with_missing_log_and_outputs_folders() {
+    fn check_config_with_missing_csv_folder() {
 
         let config = r#"
+
 [data]
-data_version="v99"
-data_date="2026-06-15"
-src_file_name="v1.59-2025-01-23-ror-data_schema_v2.json"
+full_file_stem = "ICTRPFullExport "
+full_file_num = "22"
+last_file_imported = "20250106 ICTRP.csv"
+target_file = "20250210 ICTRP.csv"
 
 [folders]
-data_folder_path="E:/MDR source data/ROR/data"
-
+csv_full_path="E:\\MDR source data\\WHO\\data\\Full export 2025-02"
+json_data_path="E:\\MDR source files"
+log_folder_path="E:\\MDR\\MDR Logs"
 
 [database]
 db_host="localhost"
 db_user="user_name"
 db_password="password"
 db_port="5433"
-db_name="ror"
+db_name="mon"
 "#;
         let config_string = config.to_string();
         let res = populate_config_vars(&config_string).unwrap();
-        assert_eq!(res.folders.data_folder_path, PathBuf::from("E:/MDR source data/ROR/data"));
-        assert_eq!(res.folders.log_folder_path, PathBuf::from("E:/MDR source data/ROR/data"));
-        assert_eq!(res.folders.output_folder_path, PathBuf::from("E:/MDR source data/ROR/data"));
+
+        assert_eq!(res.folders.csv_data_path, PathBuf::from(""));
+        assert_eq!(res.folders.csv_full_path, PathBuf::from("E:/MDR source data/WHO/data/Full export 2025-02"));
+        assert_eq!(res.folders.json_data_path, PathBuf::from("E:/MDR source files"));
+        assert_eq!(res.folders.log_folder_path, PathBuf::from("E:/MDR/MDR Logs"));
+
+    }
+
+
+    #[test]
+    fn check_config_with_missing_csv_full_folder() {
+
+        let config = r#"
+
+[data]
+full_file_stem = "ICTRPFullExport "
+full_file_num = "22"
+last_file_imported = "20250106 ICTRP.csv"
+target_file = "20250210 ICTRP.csv"
+
+[folders]
+csv_data_path="E:/MDR source data/WHO/data"
+json_data_path="E:/MDR source files"
+log_folder_path="E:/MDR/MDR Logs"
+
+[database]
+db_host="localhost"
+db_user="user_name"
+db_password="password"
+db_port="5433"
+db_name="mon"
+"#;
+        let config_string = config.to_string();
+        let res = populate_config_vars(&config_string).unwrap();
+
+        assert_eq!(res.folders.csv_data_path, PathBuf::from("E:/MDR source data/WHO/data"));
+        assert_eq!(res.folders.csv_full_path, PathBuf::from("E:/MDR source data/WHO/data"));
+        assert_eq!(res.folders.json_data_path, PathBuf::from("E:/MDR source files"));
+        assert_eq!(res.folders.log_folder_path, PathBuf::from("E:/MDR/MDR Logs"));
         
-        assert_eq!(res.data_details.src_file_name, "v1.59-2025-01-23-ror-data_schema_v2.json");
-    }
-
-
-    #[test]
-    fn check_config_with_blank_log_and_outputs_folders() {
-
-        let config = r#"
-[data]
-data_version="v99"
-data_date="2026-06-15"
-src_file_name="v1.59-2025-01-23-ror-data_schema_v2.json"
-
-[folders]
-data_folder_path="E:/MDR source data/ROR/data"
-log_folder_path=""
-output_folder_path=""
-
-[database]
-db_host="localhost"
-db_user="user_name"
-db_password="password"
-db_port="5433"
-db_name="ror"
-"#;
-        let config_string = config.to_string();
-        let res = populate_config_vars(&config_string).unwrap();
-        assert_eq!(res.folders.data_folder_path, PathBuf::from("E:/MDR source data/ROR/data"));
-        assert_eq!(res.folders.log_folder_path, PathBuf::from("E:/MDR source data/ROR/data"));
-        assert_eq!(res.folders.output_folder_path, PathBuf::from("E:/MDR source data/ROR/data"));
-
-        assert_eq!(res.data_details.src_file_name, "v1.59-2025-01-23-ror-data_schema_v2.json");
-    }
-
-
-    #[test]
-    fn check_missing_data_details_become_empty_strings() {
-
-        let config = r#"
-[data]
-src_file_name="v1.59-2025-01-23-ror-data_schema_v2.json"
-
-
-[folders]
-data_folder_path="E:/MDR source data/ROR/data"
-log_folder_path="E:/MDR source data/ROR/logs"
-output_folder_path="E:/MDR source data/ROR/outputs"
-
-
-[database]
-db_host="localhost"
-db_user="user_name"
-db_password="password"
-db_port="5433"
-db_name="ror"
-"#;
-        let config_string = config.to_string();
-        let res = populate_config_vars(&config_string).unwrap();
-        assert_eq!(res.folders.data_folder_path, PathBuf::from("E:/MDR source data/ROR/data"));
-        assert_eq!(res.folders.log_folder_path, PathBuf::from("E:/MDR source data/ROR/logs"));
-        assert_eq!(res.folders.output_folder_path, PathBuf::from("E:/MDR source data/ROR/outputs"));
-
-        assert_eq!(res.data_details.src_file_name, "v1.59-2025-01-23-ror-data_schema_v2.json");
-        assert_eq!(res.data_details.data_version, "");
-        assert_eq!(res.data_details.data_date, "");
-
-        assert_eq!(res.db_pars.db_host, "localhost");
-        assert_eq!(res.db_pars.db_user, "user_name");
-        assert_eq!(res.db_pars.db_password, "password");
-        assert_eq!(res.db_pars.db_port, 5433);
-        assert_eq!(res.db_pars.db_name, "ror");
     }
 
 
     #[test]
     #[should_panic]
-    fn check_missing_data_folder_panics() {
-    let config = r#"
-[data]
-data_version="v99"
-data_date="2026-06-15"
-src_file_name="v1.59-2025-01-23-ror-data_schema_v2.json"
+    fn check_panics_if_missing_json_folder () {
 
+        let config = r#"
+
+[data]
+full_file_stem = "ICTRPFullExport "
+full_file_num = "22"
+last_file_imported = "20250106 ICTRP.csv"
+target_file = "20250210 ICTRP.csv"
 
 [folders]
-log_folder_path="E:/MDR source data/ROR/logs"
-output_folder_path="E:/MDR source data/ROR/outputs"
-
+csv_data_path="E:\\MDR source data\\WHO\\data"
+csv_full_path="E:\\MDR source data\\WHO\\data\\Full export 2025-02"
+log_folder_path="E:\\MDR\\MDR Logs"
 
 [database]
 db_host="localhost"
 db_user="user_name"
 db_password="password"
 db_port="5433"
-db_name="ror"
+db_name="mon"
 "#;
         let config_string = config.to_string();
         let _res = populate_config_vars(&config_string).unwrap();
@@ -450,25 +426,98 @@ db_name="ror"
 
     #[test]
     #[should_panic]
-    fn check_missing_user_name_panics() {
+    fn check_panics_if_missing_log_folder () {
 
         let config = r#"
+
 [data]
-data_version="v99"
-data_date="2026-06-15"
-src_file_name="v1.59-2025-01-23-ror-data_schema_v2.json"
+full_file_stem = "ICTRPFullExport "
+full_file_num = "22"
+last_file_imported = "20250106 ICTRP.csv"
+target_file = "20250210 ICTRP.csv"
 
 [folders]
-data_folder_path="E:/MDR source data/ROR/data"
-log_folder_path="E:/MDR source data/ROR/logs"
-output_folder_path="E:/MDR source data/ROR/outputs"
+csv_data_path="E:\\MDR source data\\WHO\\data"
+csv_full_path="E:\\MDR source data\\WHO\\data\\Full export 2025-02"
+json_data_path="E:\\MDR source files"
+log_folder_path=""
 
 [database]
 db_host="localhost"
-db_user=""
+db_user="user_name"
 db_password="password"
 db_port="5433"
-db_name="ror"
+db_name="mon"
+"#;
+        let config_string = config.to_string();
+        let _res = populate_config_vars(&config_string).unwrap();
+    }
+    
+
+    #[test]
+    fn check_missing_data_details_become_defaults_or_empty_strings() {
+
+        let config = r#"
+[data]
+
+[folders]
+csv_data_path="E:/MDR source data/WHO/data"
+csv_full_path="E:/MDR source data/WHO/data/Full export 2025-02"
+json_data_path="E:/MDR source files"
+log_folder_path="E:/MDR/MDR Logs"
+
+[database]
+db_host="localhost"
+db_user="user_name"
+db_password="password"
+db_port="5433"
+db_name="mon"
+"#;
+        let config_string = config.to_string();
+        let res = populate_config_vars(&config_string).unwrap();
+
+        assert_eq!(res.folders.csv_data_path, PathBuf::from("E:/MDR source data/WHO/data"));
+        assert_eq!(res.folders.csv_full_path, PathBuf::from("E:/MDR source data/WHO/data/Full export 2025-02"));
+        assert_eq!(res.folders.json_data_path, PathBuf::from("E:/MDR source files"));
+        assert_eq!(res.folders.log_folder_path, PathBuf::from("E:/MDR/MDR Logs"));
+
+        assert_eq!(res.data_details.full_file_stem, "ICTRPFullExport ");
+        assert_eq!(res.data_details.full_file_num, 0);
+        assert_eq!(res.data_details.last_file_imported, "");
+        assert_eq!(res.data_details.target_file, "");
+
+        assert_eq!(res.db_pars.db_host, "localhost");
+        assert_eq!(res.db_pars.db_user, "user_name");
+        assert_eq!(res.db_pars.db_password, "password");
+        assert_eq!(res.db_pars.db_port, 5433);
+        assert_eq!(res.db_pars.db_name, "mon");
+    }
+
+
+
+    #[test]
+    #[should_panic]
+    fn check_missing_user_name_panics() {
+
+        let config = r#"
+
+[data]
+full_file_stem = "ICTRPFullExport "
+full_file_num = "22"
+last_file_imported = "20250106 ICTRP.csv"
+target_file = "20250210 ICTRP.csv"
+
+[folders]
+csv_data_path="E:/MDR source data/WHO/data"
+csv_full_path="E:/MDR source data/WHO/data/Full export 2025-02"
+json_data_path="E:/MDR source files"
+log_folder_path="E:/MDR/MDR Logs"
+
+[database]
+db_host="localhost"
+db_password="password"
+db_port="5433"
+db_name="mon"
 "#;
         let config_string = config.to_string();
         let _res = populate_config_vars(&config_string).unwrap();
@@ -479,27 +528,32 @@ db_name="ror"
     fn check_db_defaults_are_supplied() {
 
         let config = r#"
+
 [data]
-data_version="v99"
-data_date="2026-06-15"
-src_file_name="v1.59-2025-01-23-ror-data_schema_v2.json"
+full_file_stem = "ICTRPFullExport "
+full_file_num = "22"
+last_file_imported = "20250106 ICTRP.csv"
+target_file = "20250210 ICTRP.csv"
 
 [folders]
-data_folder_path="E:/MDR source data/ROR/data"
-log_folder_path="E:/MDR source data/ROR/logs"
-output_folder_path="E:/MDR source data/ROR/outputs"
+csv_data_path="E:/MDR source data/WHO/data"
+csv_full_path="E:/MDR source data/WHO/data/Full export 2025-02"
+json_data_path="E:/MDR source files"
+log_folder_path="E:/MDR/MDR Logs"
 
 [database]
 db_user="user_name"
 db_password="password"
+
 "#;
         let config_string = config.to_string();
         let res = populate_config_vars(&config_string).unwrap();
+
         assert_eq!(res.db_pars.db_host, "localhost");
         assert_eq!(res.db_pars.db_user, "user_name");
         assert_eq!(res.db_pars.db_password, "password");
         assert_eq!(res.db_pars.db_port, 5432);
-        assert_eq!(res.db_pars.db_name, "ror");
+        assert_eq!(res.db_pars.db_name, "mon");
     }
 
 
@@ -507,33 +561,34 @@ db_password="password"
     fn missing_port_gets_default() {
 
         let config = r#"
+
 [data]
-src_file_name="v1.59-2025-01-23-ror-data_schema_v2.json"
+full_file_stem = "ICTRPFullExport "
+full_file_num = "22"
+last_file_imported = "20250106 ICTRP.csv"
+target_file = "20250210 ICTRP.csv"
 
 [folders]
-data_folder_path="E:/MDR source data/ROR/data"
-log_folder_path="E:/MDR source data/ROR/logs"
-output_folder_path="E:/MDR source data/ROR/outputs"
+csv_data_path="E:/MDR source data/WHO/data"
+csv_full_path="E:/MDR source data/WHO/data/Full export 2025-02"
+json_data_path="E:/MDR source files"
+log_folder_path="E:/MDR/MDR Logs"
 
 [database]
 db_host="localhost"
 db_user="user_name"
 db_password="password"
-db_port=""
-db_name="ror"
+db_name="mon"
 
 "#;
         let config_string = config.to_string();
         let res = populate_config_vars(&config_string).unwrap();
 
-        assert_eq!(res.data_details.data_version, "");
-        assert_eq!(res.data_details.data_date, "");
-
         assert_eq!(res.db_pars.db_host, "localhost");
         assert_eq!(res.db_pars.db_user, "user_name");
         assert_eq!(res.db_pars.db_password, "password");
         assert_eq!(res.db_pars.db_port, 5432);
-        assert_eq!(res.db_pars.db_name, "ror");
+        assert_eq!(res.db_pars.db_name, "mon");
     }
 
 }

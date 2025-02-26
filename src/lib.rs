@@ -15,24 +15,15 @@ pub async fn run(args: Vec<OsString>) -> Result<(), AppError> {
     // the equivalent of a user's initialisation request. Otherwise
     // they are read using the CLAP based CLI reader.
 
-    let cli_pars: cli_reader::CliPars;
-    if !cli_reader::config_file_exists() {
-        cli_pars = cli_reader::get_initalising_cli_pars();  // force flags to equal initialisation request
-    }
-    else {
-        cli_pars = cli_reader::fetch_valid_arguments(args)?;
-    }
-    let flags = cli_pars.flags;
-
+    let cli_pars = cli_reader::fetch_valid_arguments(args)?;
     let config_file = PathBuf::from("./app_config.toml");
     let config_string: String = fs::read_to_string(&config_file)
                     .map_err(|e| AppError::IoReadErrorWithPath(e, config_file))?;
     
     let params = setup::get_params(cli_pars, &config_string)?;
 
-    setup::establish_log(&params, &config_string)?;
+    setup::establish_log(&params)?;
     let _pool = setup::get_db_pool().await?;
-    let _test_run = flags.test_run;
 
     /*
     // The first two routines below normally run only as an initial 
