@@ -3,6 +3,72 @@ mod processor;
 mod helper;
 mod gen_helper;
 
+use std::path::PathBuf;
+use crate::{AppError, DownloadResult};
+use file_model::WHOLine;
+use std::io::BufReader;
+use std::fs::File;
+use csv::ReaderBuilder;
+
+
+#[allow(dead_code)]
+pub struct WhoDLRes {
+    pub source: i32,
+    pub number_dl: i32,
+}
+
+pub fn process_single_file(file_path: &PathBuf, _json_path: &PathBuf, _res: &DownloadResult) -> Result<Vec<WhoDLRes>, AppError> {
+
+    let file = File::open(file_path)?;
+    let buf_reader = BufReader::new(file);
+    let mut csv_rdr = ReaderBuilder::new()
+        .has_headers(false)
+        .from_reader(buf_reader);
+    
+    let mut i = 0;
+ 
+    for result in csv_rdr.deserialize() {
+    
+        let source: WHOLine = result?;
+        let sd_id = source.trial_id;
+
+        println!("{}", sd_id);
+        
+
+        i += 1;
+        if i > 20 {
+            break;
+        }
+    }
+    
+    // for each line...
+        // tries to read it as a struct
+        // processes the struct to form a json file
+        // gets the file name and the destination folder
+        // writes the file
+        // sees if it is a new download, or an existing one
+        // update the relevant DB's source table to keep the records up to date
+        // increments a counter for the relevant source
+    //
+    // If all successful
+    // Take the various counters and store them in the database
+    // return the aggregate figures in the res struct ... 
+    // record the event in the dl events table 
+    // Record that file's download - source file, overall numbers, date etc. in the database if not already covered
+
+       
+
+    Ok(vec![WhoDLRes {
+        source: 10000,
+        number_dl: 0,
+    }])
+
+}
+
+
+
+
+
 
 // WHO processing unusual in that it is from a csv file
 // The program loops through the file and creates a JSON file from each row
@@ -27,21 +93,7 @@ mod gen_helper;
 
 // set up the csv reader
 
-// import the file and 
 
-//  *** for each line *************
-
-// cast each line to the relevant struct
-
-// send the struct for processing...
-
-// get back a json file properly structured and the folder in which it should be stored
-
-// work out the file's name and store it
-
-// update running totals - for storage in the db at the end of the process
-
-// return summary result to the calling lib module
 
  // ********************************
 /*

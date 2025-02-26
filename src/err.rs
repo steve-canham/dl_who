@@ -55,6 +55,10 @@ pub enum AppError {
 
     #[error("Error reading user input: {0:?}")]
     UserInputError (#[from] std::io::Error),
+
+    #[error("Error during CSV read operation: {0:?}")]
+    CsvError(#[from] csv::Error),
+    
 }
 
 
@@ -108,6 +112,8 @@ pub fn report_error(e: AppError) -> () {
         AppError::RegexError(e, d) => print_error(e.to_string(), d, "REGEX ISSUE"),
    
         AppError::UserInputError(e) => print_simple_error (e.to_string(), "USER INPUT ERROR"),
+
+        AppError::CsvError(e) => print_simple_error (e.to_string(), "CSV ERROR"),
     }
 }
 

@@ -16,6 +16,7 @@ pub mod cli_reader;
 pub mod config_reader;
 pub mod log_helper;
 
+use std::fs;
 use std::sync::OnceLock;
 use crate::err::AppError;
 use sqlx::postgres::{PgPoolOptions, PgConnectOptions, PgPool};
@@ -60,7 +61,14 @@ pub fn get_params(cli_pars: CliPars, config_string: &String) -> Result<InitParam
     let csv_full_path = folder_pars.csv_full_path;
 
     let json_data_path = folder_pars.json_data_path;  // already checked as present
+    if !folder_exists(&json_data_path) {
+        fs::create_dir_all(&json_data_path)?;
+    }
+
     let log_folder_path = folder_pars.log_folder_path;  // already checked as present
+    if !folder_exists(&log_folder_path) {
+        fs::create_dir_all(&log_folder_path)?;
+    }
        
     if target == empty_str {   // from CLI in the first instance
             target = data_pars.target_file;  // otherwise use the config file

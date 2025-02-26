@@ -8,6 +8,29 @@ use err::AppError;
 use std::ffi::OsString;
 use std::fs;
 use std::path::PathBuf;
+use chrono::{DateTime, Utc};
+
+#[derive(Clone)]
+pub struct DownloadResult {
+    pub time_started: DateTime<Utc>,
+    pub time_ended: DateTime<Utc>,
+    pub num_records_checked: i32,
+    pub num_records_downloaded: i32,
+    pub num_records_added: i32,
+}
+
+impl DownloadResult {
+    pub fn new() -> Self {
+        DownloadResult {  
+        time_started: Utc::now(),
+        time_ended: Utc::now(),
+        num_records_checked: 0,
+        num_records_downloaded: 0,
+        num_records_added: 0,
+        }
+   }
+
+}
 
 pub async fn run(args: Vec<OsString>) -> Result<(), AppError> {
     
@@ -24,60 +47,82 @@ pub async fn run(args: Vec<OsString>) -> Result<(), AppError> {
 
     setup::establish_log(&params)?;
     let _pool = setup::get_db_pool().await?;
+    let json_path = params.json_data_path;
 
-    /*
-    // The first two routines below normally run only as an initial 
-    // 'setup' of the program's config file and DB, but can be repeated later if required.
+    let res = DownloadResult::new();
+   
+    match params.dl_type {
 
-    if flags.create_lookups
-    {  
-        setup::create_lup_tables(&pool).await?;
-    }
+        501 => {
 
-    if flags.create_summary
-    {  
-        summarise::create_smm_tables(&pool).await?;
-    }
-    
-    // The routines below run as part of the 'normal' functioning of the program.
-    // Exactluy which is dependent on the flags provided in the CLI
+            // Default - processing of stored WHO csv files not yet processed (was type 113).
 
-    if flags.import_ror    // import ror from json file and store in ror schema tables
-    {
-        import::create_ror_tables(&pool).await?;
-        import::import_data(&params.data_folder, &params.source_file_name, 
-                            &params.data_version, &params.data_date, &pool).await?;
-        if !test_run {
-            import::summarise_import(&pool).await?;
+            let source_folder = params.csv_data_path;
+            let _last_file = params.last_file_imported;
+
+            // first need a routine that can identify the files and return them 
+            // as a vector of file names, in the correct order, if any...
+
+            let files_to_process = vec!["a", "b", "c"];
+
+            if files_to_process.len() > 0 {
+                for f in files_to_process {
+                    let file_path: PathBuf = [&source_folder, &PathBuf:: from(f)].iter().collect();
+                    let _res = who::process_single_file(&file_path, &json_path, &res)?;
+
+                    // record the event in the dl events table:
+                    // Record that file's download - source file, overall numbers, date etc. in the database
+                }
+
+                // aggregate figures as we go through the loop, for final feedback
+                // but do not DB them ??
+            }
+
+        },
+
+        502 => {
+
+            // Processing of a full data download (20+ files) (was type 103).
+            
+            let source_folder = params.csv_full_path;
+            let file_num = params.full_file_num;
+            let file_stem = params.full_file_stem;
+
+            for i in 1..file_num {
+                let file_name = file_stem.clone() + &(format!("{:0>3}", i));
+                let file_path: PathBuf = [&source_folder, &PathBuf:: from(file_name)].iter().collect();
+                let _res = who::process_single_file(&file_path, &json_path, &res)?;
+
+                // record the event in the dl events table:
+                // Record that file's download - source file, overall numbers, date etc. in the database
+            }
+                       
+            // aggregate figures as we go through the loop, for final feedback
+            // but do not DB them ??
+
+        },
+
+        503 => {
+
+            // Processing of a single designated file.
+            let source_folder = params.csv_data_path;
+
+            let file_name = params.target;
+            let file_path: PathBuf = [source_folder, PathBuf:: from(file_name)].iter().collect();
+            let _res = who::process_single_file(&file_path, &json_path, &res)?;
+
+            // record the event in the dl events table:
+            // Record that file's download - source file, overall numbers, date etc. in the database
+        },
+
+        _ => {
+
+            // shouldn't do anything except report weird dl type code
+             
         }
     }
 
-    if flags.process_data  // transfer data to src tables, and summarise in smm tables
-    {
-        process::create_src_tables(&pool).await?;
-        process::process_data(&params.data_version, &pool).await?;
-        summarise::summarise_data(&pool).await?;
-    }
 
-    if flags.export_text  // write out summary data from data in smm tables
-    { 
-        export::export_as_text(&params.output_folder, &params.data_version, &pool).await?;
-    }
-
-    if flags.export_csv  // write out summary data from data in smm tables
-    { 
-        export::export_as_csv(&params.output_folder, &params.data_version, &pool).await?;
-    }
-
-    if flags.export_full_csv  // write out summary data for all versions from data in smm tables
-    {       
-        export::export_all_as_csv(&params.output_folder, &pool).await?;
-    }
-
-    if test_run {  // Clear any test data from the smm tables.
-        summarise::smm_helper::delete_any_existing_data(&"v99".to_string(), &pool).await?; 
-    }
-     */
 
     Ok(())  
 }

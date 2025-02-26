@@ -1,10 +1,21 @@
-/*
+//use crate::AppError;
+//use std::path::PathBuf;
+//use crate::DownloadResult;
 
-using MDR_Downloader.Helpers;
-using System.Text.RegularExpressions;
 
-namespace MDR_Downloader.who
-{
+//pub fn process_single_line(file_path: &PathBuf, json_path: &PathBuf, res: &DownloadResult)
+//                                        -> Result<DownloadResult, AppError>  {
+
+
+
+
+
+ //Ok(res.to_owned())
+
+//}
+
+/* 
+
     public class WHO_Processor
     {
         private readonly WHOHelpers _wh;
