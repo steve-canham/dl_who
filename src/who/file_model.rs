@@ -4,79 +4,79 @@
 #[derive(serde::Deserialize)]
 pub struct WHOLine
 {
-    pub trial_id: String,                          // 0
-    pub last_updated: Option<String>,              // 1
-    pub sec_ids: Option<String>,                   // 2
-    pub pub_title: Option<String>,                 // 3
-    pub scientific_title: Option<String>,          // 4
-    pub url: Option<String>,                       // 5
+    pub trial_id: String,                           // 0
+    pub last_updated: String,                       // 1
+    pub sec_ids: String,                            // 2
+    pub pub_title: String,                          // 3
+    pub scientific_title: String,                   // 4
+    pub url: String,                                // 5
 
-    pub pub_contact_first_name: Option<String>,    // 6
-    pub pub_contact_last_name: Option<String>,     // 7
-    pub pub_contact_address: Option<String>,       // 8
-    pub pub_contact_email: Option<String>,         // 9
-    pub pub_contact_tel: Option<String>,           // 10
-    pub pub_contact_affiliation: Option<String>,   // 11
+    pub pub_contact_first_name: String,             // 6
+    pub pub_contact_last_name: String,              // 7
+    pub pub_contact_address: String,                // 8
+    pub pub_contact_email: String,                  // 9
+    pub pub_contact_tel: String,                    // 10
+    pub pub_contact_affiliation: String,            // 11
 
-    pub sci_contact_first_name: Option<String>,    // 12
-    pub sci_contact_last_name: Option<String>,     // 13
-    pub sci_contact_address: Option<String>,       // 14
-    pub sci_contact_email: Option<String>,         // 15
-    pub sci_contact_tel: Option<String>,           // 16
-    pub sci_contact_affiliation: Option<String>,   // 17
+    pub sci_contact_first_name: String,             // 12
+    pub sci_contact_last_name: String,              // 13
+    pub sci_contact_address: String,                // 14
+    pub sci_contact_email: String,                  // 15
+    pub sci_contact_tel: String,                    // 16
+    pub sci_contact_affiliation: String,            // 17
 
-    pub study_type: Option<String>,                // 18
-    pub study_design: Option<String>,              // 19
-    pub phase: Option<String>,                     // 20
-    pub date_registration: Option<String>,         // 21
-    pub date_enrollement: Option<String>,          // 22
-    pub target_size: Option<String>,               // 23
-    pub recruitment_status: Option<String>,        // 24
+    pub study_type: String,                         // 18
+    pub study_design: String,                       // 19
+    pub phase: String,                              // 20
+    pub date_registration: String,                  // 21
+    pub date_enrollement: String,                   // 22
+    pub target_size: String,                        // 23
+    pub recruitment_status:String,                  // 24
 
-    pub primary_sponsor: Option<String>,           // 25
-    pub secondary_sponsors: Option<String>,        // 26
-    pub source_support: Option<String>,            // 27
-    pub countries: Option<String>,                 // 28
-    pub conditions: Option<String>,                // 29
-    pub interventions: Option<String>,             // 30
+    pub primary_sponsor: String,                    // 25
+    pub secondary_sponsors: String,                 // 26
+    pub source_support: String,                     // 27
+    pub countries: String,                          // 28
+    pub conditions: String,                         // 29
+    pub interventions: String,                      // 30
 
-    pub age_min: Option<String>,                   // 31
-    pub age_max: Option<String>,                   // 32
-    pub gender: Option<String>,                    // 33
-    pub inclusion_criteria: Option<String>,        // 34
-    pub exclusion_criteria: Option<String>,        // 35
+    pub age_min: String,                            // 31
+    pub age_max: String,                            // 32
+    pub gender: String,                             // 33
+    pub inclusion_criteria: String,                 // 34
+    pub exclusion_criteria: String,                 // 35
 
-    pub primary_outcome: Option<String>,           // 36
-    pub secondary_outcomes: Option<String>,        // 37
+    pub primary_outcome: String,                    // 36
+    pub secondary_outcomes: String,                 // 37
 
-    pub bridging_flag: Option<String>,             // 38
-    pub bridged_type: Option<String>,              // 39
-    pub childs: Option<String>,                    // 40
-    pub type_enrolment: Option<String>,            // 41
-    pub retrospective_flag: Option<String>,        // 42
+    pub bridging_flag: String,                      // 38
+    pub bridged_type: String,                       // 39
+    pub childs: String,                             // 40
+    pub type_enrolment: String,                     // 41
+    pub retrospective_flag: String,                 // 42
 
-    pub results_actual_enrollment: Option<String>, // 43
-    pub results_url_link: Option<String>,          // 44
-    pub results_summary: Option<String>,           // 45
-    pub results_date_posted: Option<String>,       // 46
-    pub results_date_first_pubation: Option<String>,//47
-    pub results_baseline_char: Option<String>,     // 48
-    pub results_participant_flow: Option<String>,  // 49
-    pub results_adverse_events: Option<String>,    // 50
-    pub results_outcome_measures: Option<String>,  // 51
-    pub results_url_protocol: Option<String>,      // 52
+    pub results_actual_enrollment: String,          // 43
+    pub results_url_link: String,                   // 44
+    pub results_summary: String,                    // 45
+    pub results_date_posted: String,                // 46
+    pub results_date_first_pubation: String,        // 47
+    pub results_baseline_char: String,              // 48
+    pub results_participant_flow: String,           // 49
+    pub results_adverse_events: String,             // 50
+    pub results_outcome_measures: String,           // 51
+    pub results_url_protocol: String,               // 52
 
-    pub results_ipd_plan: Option<String>,          // 53
-    pub results_ipd_description: Option<String>,   // 54
-    pub results_date_completed: Option<String>,    // 55
-    pub results_yes_no: Option<String>,            // 56
+    pub results_ipd_plan: String,                   // 53
+    pub results_ipd_description: String,            // 54
+    pub results_date_completed: String,             // 55
+    pub results_yes_no: String,                     // 56
 
-    pub ethics_status: Option<String>,             // 57
-    pub ethics_approval_date: Option<String>,      // 58
-    pub ethics_contact_name: Option<String>,       // 59
-    pub ethics_contact_address: Option<String>,    // 60
-    pub ethics_contact_phone: Option<String>,      // 61
-    pub ethics_contact_email: Option<String>,      // 62
+    pub ethics_status: String,                      // 57
+    pub ethics_approval_date: String,               // 58
+    pub ethics_contact_name: String,                // 59
+    pub ethics_contact_address:String,              // 60
+    pub ethics_contact_phone: String,               // 61
+    pub ethics_contact_email: String,               // 62
 
 }
 
@@ -456,6 +456,7 @@ NULL,
 
 
 #[allow(dead_code)]
+#[derive(Debug)]
 pub struct WHORecord
 {
     pub source_id: usize, 
@@ -505,7 +506,7 @@ pub struct WHORecord
     pub ipd_description: Option<String>,
     pub results_date_completed: Option<String>,
     pub results_yes_no: Option<String>,
-    pub db_name: Option<String>,
+    pub db_name: String,
 
     pub design_string: Option<String>,
     pub phase_string: Option<String>,
@@ -516,24 +517,24 @@ pub struct WHORecord
     pub condition_list: Option<Vec<String>>,
 }
 
-
+#[derive(Debug)]
 #[allow(dead_code)]
 pub struct SecondaryId
 {
-    pub source_field: Option<String>,
-    pub sec_id: Option<String>,
+    pub source_field: String,
+    pub sec_id: String,
     pub processed_id: Option<String>,
-    pub sec_id_source: Option<isize>,
-    pub sec_id_type_id: Option<isize>,
+    pub sec_id_source: Option<usize>,
+    pub sec_id_type_id: Option<usize>,
     pub sec_id_type: Option<String>,
 }
 
 #[allow(dead_code)]
 impl SecondaryId {
 
-    pub fn new(source_field: Option<String>, sec_id: Option<String>,
-        processed_id: Option<String>, sec_id_source: Option<isize>,
-        sec_id_type_id: Option<isize>, sec_id_type: Option<String>)
+    pub fn new(source_field: String, sec_id: String,
+        processed_id: Option<String>, sec_id_source: Option<usize>,
+        sec_id_type_id: Option<usize>, sec_id_type: Option<String>)
          -> Self {SecondaryId {  
                 source_field,
                 sec_id,
@@ -544,8 +545,8 @@ impl SecondaryId {
             }
     }
   
-    pub fn short_new(source_field: Option<String>, sec_id: Option<String>,
-        processed_id: Option<String>, sec_id_source: Option<isize>)
+    pub fn short_new(source_field: String, sec_id: String,
+        processed_id: Option<String>, sec_id_source: Option<usize>)
          -> Self {SecondaryId {  
             source_field,
             sec_id,
@@ -563,16 +564,16 @@ impl SecondaryId {
 pub struct SecIdBase
 {
     pub processed_id: Option<String>,
-    pub sec_id_source: Option<isize>,
-    pub sec_id_type_id: Option<isize>,
+    pub sec_id_source: Option<usize>,
+    pub sec_id_type_id: Option<usize>,
     pub sec_id_type: Option<String>,
 } 
 
 #[allow(dead_code)]
 impl SecIdBase {
 
-    pub fn new(processed_id: Option<String>, sec_id_source: Option<isize>,
-        sec_id_type_id: Option<isize> , sec_id_type: Option<String>) -> Self {
+    pub fn new(processed_id: Option<String>, sec_id_source: Option<usize>,
+        sec_id_type_id: Option<usize> , sec_id_type: Option<String>) -> Self {
         SecIdBase {  
             processed_id,
             sec_id_source,
@@ -581,7 +582,7 @@ impl SecIdBase {
          }
     }
 
-    pub fn short_new(processed_id: Option<String>, sec_id_source: Option<isize>) -> Self {
+    pub fn short_new(processed_id: Option<String>, sec_id_source: Option<usize>) -> Self {
         SecIdBase {  
             processed_id,
             sec_id_source,
@@ -591,167 +592,26 @@ impl SecIdBase {
     }
 }
 
-
+#[derive(Debug)]
 #[allow(dead_code)]
 pub struct WhoStudyFeature
 {
-    pub ftype_id: Option<isize>,
-    pub ftype: Option<String>,
-    pub fvalue_id: Option<isize>,
-    pub fvalue: Option<String>,
+    pub ftype_id: usize,
+    pub ftype: String,
+    pub fvalue_id: usize,
+    pub fvalue: String,
 }
 
 #[allow(dead_code)]
 impl WhoStudyFeature {
 
-    pub fn new(ftype_id: Option<isize>, ftype: Option<String>,
-        fvalue_id: Option<isize>, fvalue: Option<String>) -> Self {
+    pub fn new(ftype_id: usize, ftype: &str,
+        fvalue_id: usize, fvalue: &str) -> Self {
         WhoStudyFeature {
             ftype_id,
-            ftype,
+            ftype: ftype.to_string(),
             fvalue_id,
-            fvalue,
+            fvalue: fvalue.to_string(),
         }
     }
 }
-
-
-
-/*
-pub class WHO_SourceRecord
-{
-    // 'last_updated' currently '(No column name)',
-    // Recent files have no header at all...
-    // hence the need to index all fields in the source model
-
-    [Index(0)] 
-    pub string TrialID: Option<String>, = null!;
-    [Index(1)]
-    pub string? last_updated: Option<String>,
-    [Index(2)]
-    pub string? SecondaryIDs: Option<String>,
-    [Index(3)]
-    pub string? pub_title: Option<String>,
-    [Index(4)]
-    pub string? Scientific_title: Option<String>,
-    [Index(5)]
-    pub string? url: Option<String>,
-    [Index(6)]
-    pub string? pub_Contact_Firstname: Option<String>,
-    [Index(7)]
-    pub string? pub_Contact_Lastname: Option<String>,
-    [Index(8)]
-    pub string? pub_Contact_Address: Option<String>,
-    [Index(9)]
-    pub string? pub_Contact_Email: Option<String>,
-    [Index(10)]
-    pub string? pub_Contact_Tel: Option<String>,
-    [Index(11)]
-    pub string? pub_Contact_Affiliation: Option<String>,
-    [Index(12)]
-    pub string? Scientific_Contact_Firstname: Option<String>,
-    [Index(13)]
-    pub string? Scientific_Contact_Lastname: Option<String>,
-    [Index(14)]
-    pub string? Scientific_Contact_Address: Option<String>,
-    [Index(15)]
-    pub string? Scientific_Contact_Email: Option<String>,
-    [Index(16)]
-    pub string? Scientific_Contact_Tel: Option<String>,
-    [Index(17)]
-    pub string? Scientific_Contact_Affiliation: Option<String>,
-    [Index(18)]
-    pub string? study_type: Option<String>,
-    [Index(19)]
-    pub string? study_design: Option<String>,
-    [Index(20)]
-    pub string? phase: Option<String>,
-    [Index(21)]
-    pub string? Date_registration: Option<String>,
-    [Index(22)]
-    pub string? Date_enrollement: Option<String>,
-    [Index(23)]
-    pub string? Target_size: Option<String>,
-    [Index(24)]
-    pub string? Recruitment_status: Option<String>,
-    [Index(25)]
-    pub string? Primary_sponsor: Option<String>,
-    [Index(26)]
-    pub string? Secondary_sponsors: Option<String>,
-    [Index(27)]
-    pub string? Source_Support: Option<String>,
-    [Index(28)]
-    pub string? Countries: Option<String>,
-    [Index(29)]
-    pub string? Conditions: Option<String>,
-    [Index(30)]
-    pub string? Interventions: Option<String>,
-    [Index(31)]
-    pub string? Age_min: Option<String>,
-    [Index(32)]
-    pub string? Age_max: Option<String>,
-    [Index(33)]
-    pub string? Gender: Option<String>,
-    [Index(34)]
-    pub string? Inclusion_Criteria: Option<String>,
-    [Index(35)]
-    pub string? Exclusion_Criteria: Option<String>,
-    [Index(36)]
-    pub string? Primary_Outcome: Option<String>,
-    [Index(37)]
-    pub string? Secondary_Outcomes: Option<String>,
-    [Index(38)]
-    pub string? Bridging_flag: Option<String>,
-    [Index(39)]
-    pub string? Bridged_type: Option<String>,
-    [Index(40)]
-    pub string? Childs: Option<String>,
-    [Index(41)]
-    pub string? type_enrolment: Option<String>,
-    [Index(42)]
-    pub string? Retrospective_flag: Option<String>,
-    [Index(43)]
-    pub string? results_actual_enrollment: Option<String>,
-    [Index(44)]
-    pub string? results_url_link: Option<String>,
-    [Index(45)]
-    pub string? results_summary: Option<String>,
-    [Index(46)]
-    pub string? results_date_posted: Option<String>,
-    [Index(47)]
-    pub string? results_date_first_pubation: Option<String>,
-    [Index(48)]
-    pub string? results_baseline_char: Option<String>,
-    [Index(49)]
-    pub string? results_participant_flow: Option<String>,
-    [Index(50)]
-    pub string? results_adverse_events: Option<String>,
-    [Index(51)]
-    pub string? results_outcome_measures: Option<String>,
-    [Index(52)]
-    pub string? results_url_protocol: Option<String>,
-    [Index(53)]
-    pub string? results_IPD_plan: Option<String>,
-    [Index(54)]
-    pub string? results_IPD_description: Option<String>,
-    [Index(55)]
-    pub string? results_date_completed: Option<String>,
-    [Index(56)]
-    pub string? results_yes_no: Option<String>,
-    [Index(57)]
-    pub string? Ethics_Status: Option<String>,
-    [Index(58)]
-    pub string? Ethics_Approval_Date: Option<String>,
-    [Index(59)]
-    pub string? Ethics_Contact_Name: Option<String>,
-    [Index(60)]
-    pub string? Ethics_Contact_Address: Option<String>,
-    [Index(61)]
-    pub string? Ethics_Contact_Phone: Option<String>,
-    [Index(62)]
-    pub string? Ethics_Contact_Email: Option<String>,
-
-}
-
-
-*/

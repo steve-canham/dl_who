@@ -1,11 +1,12 @@
 mod file_model;
 mod processor;
-mod helper;
-mod gen_helper;
+pub mod who_helper;
+pub mod gen_helper;
 
 use std::path::PathBuf;
 use crate::{AppError, DownloadResult};
 use file_model::WHOLine;
+//use sqlx::database;
 use std::io::BufReader;
 use std::fs::File;
 use csv::ReaderBuilder;
@@ -17,7 +18,7 @@ pub struct WhoDLRes {
     pub number_dl: i32,
 }
 
-pub fn process_single_file(file_path: &PathBuf, _json_path: &PathBuf, _res: &DownloadResult) -> Result<Vec<WhoDLRes>, AppError> {
+pub fn process_single_file(file_path: &PathBuf, _json_path: &PathBuf, res: &mut DownloadResult) -> Result<Vec<WhoDLRes>, AppError> {
 
     let file = File::open(file_path)?;
     let buf_reader = BufReader::new(file);
@@ -26,38 +27,41 @@ pub fn process_single_file(file_path: &PathBuf, _json_path: &PathBuf, _res: &Dow
         .from_reader(buf_reader);
     
     let mut i = 0;
- 
-    for result in csv_rdr.deserialize() {
+
+    // set up vectors, counters here
+    // set up json writers here (?)
+
+     for result in csv_rdr.deserialize() {
     
-        let source: WHOLine = result?;
-        let sd_id = source.trial_id;
+        let who_line: WHOLine = result?;
+        res.num_records_checked +=1;
 
-        println!("{}", sd_id);
-        
+        let _who_rec = match processor::process_line(who_line, i) {
+            Some(r) => r,
+            None => {continue;},
+        };
 
+        res.num_records_downloaded +=1;
+
+        // derive the file's name
+        // work out where to store the data as a file
+        // update per source counters
+        // update database (relevant DB's source record)
+        // see if it is a new download, or an existing one
+        // update res
+      
         i += 1;
-        if i > 20 {
+        if i > 2 {
             break;
         }
     }
     
-    // for each line...
-        // tries to read it as a struct
-        // processes the struct to form a json file
-        // gets the file name and the destination folder
-        // writes the file
-        // sees if it is a new download, or an existing one
-        // update the relevant DB's source table to keep the records up to date
-        // increments a counter for the relevant source
     //
     // If all successful
     // Take the various counters and store them in the database
     // return the aggregate figures in the res struct ... 
     // record the event in the dl events table 
-    // Record that file's download - source file, overall numbers, date etc. in the database if not already covered
-
-       
-
+ 
     Ok(vec![WhoDLRes {
         source: 10000,
         number_dl: 0,
@@ -66,36 +70,6 @@ pub fn process_single_file(file_path: &PathBuf, _json_path: &PathBuf, _res: &Dow
 }
 
 
-
-
-
-
-// WHO processing unusual in that it is from a csv file
-// The program loops through the file and creates a JSON file from each row
-// It then distributes it to the correct source folder for 
-// later harvesting.
-
-// In some cases the file will be one of a set created from a large
-// 'all data' download, in other cases it will be a weekly update file
-// In both cases any existing JSON files of the same name should be overwritten.
-
-// Download result struct here
-
-// get source data so that local files are known for each source
-
-// if normal download get file, from command line
-// or work out files not yet processed and the order they are erquired from the record of past downloads
-
-// if multiple files involved, as in a full data download, use data in config file to work
-// through the files inthe correct order
-
-// implies 3 flags - -s, -d, -f respectively
-
-// set up the csv reader
-
-
-
- // ********************************
 /*
         DownloadResult res = new();
         string? file_base = source.local_folder;
@@ -109,28 +83,12 @@ pub fn process_single_file(file_path: &PathBuf, _json_path: &PathBuf, _res: &Dow
         WHO_Processor who_processor = new();
         string source_file = opts.FileName!;     // already checked as non-null
 
-        var csv_reader_config = new CsvConfiguration(CultureInfo.InvariantCulture)
-        {
-            HasHeaderRecord = false,
-        };
-
         var json_options = new JsonSerializerOptions()
         {
             Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
             WriteIndented = true
         };
 
-        using (var reader = new StreamReader(source_file, true))
-        {
-            using var csv = new CsvReader(reader, csv_reader_config);
-            var records = csv.GetRecords<WHO_SourceRecord>();
-            _loggingHelper.LogLine("Rows loaded into WHO record structure");
-
-            // Consider each study row in turn and turn it into a WHO record class.
-
-            foreach (WHO_SourceRecord sr in records)
-            {
-                res.num_checked++;
                 WHORecord? r = who_processor.ProcessStudyDetails(sr);
 
                 if (r is not null)

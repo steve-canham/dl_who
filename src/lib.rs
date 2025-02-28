@@ -49,7 +49,7 @@ pub async fn run(args: Vec<OsString>) -> Result<(), AppError> {
     let _pool = setup::get_db_pool().await?;
     let json_path = params.json_data_path;
 
-    let res = DownloadResult::new();
+    let mut res = DownloadResult::new();
    
     match params.dl_type {
 
@@ -68,7 +68,7 @@ pub async fn run(args: Vec<OsString>) -> Result<(), AppError> {
             if files_to_process.len() > 0 {
                 for f in files_to_process {
                     let file_path: PathBuf = [&source_folder, &PathBuf:: from(f)].iter().collect();
-                    let _res = who::process_single_file(&file_path, &json_path, &res)?;
+                    let _res = who::process_single_file(&file_path, &json_path, &mut res)?;
 
                     // record the event in the dl events table:
                     // Record that file's download - source file, overall numbers, date etc. in the database
@@ -91,7 +91,7 @@ pub async fn run(args: Vec<OsString>) -> Result<(), AppError> {
             for i in 1..file_num {
                 let file_name = file_stem.clone() + &(format!("{:0>3}", i));
                 let file_path: PathBuf = [&source_folder, &PathBuf:: from(file_name)].iter().collect();
-                let _res = who::process_single_file(&file_path, &json_path, &res)?;
+                let _res = who::process_single_file(&file_path, &json_path, &mut res)?;
 
                 // record the event in the dl events table:
                 // Record that file's download - source file, overall numbers, date etc. in the database
@@ -109,7 +109,7 @@ pub async fn run(args: Vec<OsString>) -> Result<(), AppError> {
 
             let file_name = params.target;
             let file_path: PathBuf = [source_folder, PathBuf:: from(file_name)].iter().collect();
-            let _res = who::process_single_file(&file_path, &json_path, &res)?;
+            let _res = who::process_single_file(&file_path, &json_path, &mut res)?;
 
             // record the event in the dl events table:
             // Record that file's download - source file, overall numbers, date etc. in the database

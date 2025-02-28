@@ -68,10 +68,10 @@ pub fn report_error(e: AppError) -> () {
         AppError::ConfigurationError(p, d) => print_error (p, d, "CONFIGURATION ERROR"),
 
         AppError::ClapError(e) => print_error ("Error occureed when parsing CLI argumants".to_string(), 
-                    e.to_string(), "CLAP ERROR"),
+                  e.to_string(), "CLAP ERROR"),
 
         AppError::MissingDBParameters() => print_error ("Unable to obtain database parameters.".to_string(),
-                    "Attempting to read OnceLock<DB_PARS>".to_string(), "DB PARAMETERS ERROR"),            
+                  "Attempting to read OnceLock<DB_PARS>".to_string(), "DB PARAMETERS ERROR"),            
 
         AppError::MissingProgramParameter(p) =>  print_error (
                   "A required parameter is neither in the config file nor the command line arguments".to_string(), 
@@ -82,32 +82,32 @@ pub fn report_error(e: AppError) -> () {
                  s, "INCONSISTENT PARAMETERS"),
 
         AppError::IncompatibleVersions(v_requested, v_stored)  =>  print_error (
-                    format!("The version specified ('{}'), does not match the data stored in the ror schema ('{}').", v_requested, v_stored),
-                    " Run -r or -a with the specified version, to re-import the data and allow its processing and summarising.".to_string(), 
-                    " INCOMPATIBLE VERSIONS"),
+                 format!("The version specified ('{}'), does not match the data stored in the ror schema ('{}').", v_requested, v_stored),
+                 " Run -r or -a with the specified version, to re-import the data and allow its processing and summarising.".to_string(), 
+                 " INCOMPATIBLE VERSIONS"),
 
         AppError::MissingVersion(v_requested)  =>  print_error (
-                        format!("Data for the version specified ('{}') does not yet exist in the summary tables.", v_requested),
-                        " Run -r or -a with the specified version, to import the data and allow its processing and summarising.".to_string(), 
-                        " MISSING VERSION"),
+                 format!("Data for the version specified ('{}') does not yet exist in the summary tables.", v_requested),
+                 " Run -r or -a with the specified version, to import the data and allow its processing and summarising.".to_string(), 
+                 " MISSING VERSION"),
 
         AppError::LogSetupError(p, d) => print_error (p, d, "LOG SETUP ERROR"),
 
         AppError::IoReadErrorWithPath(e, p) => print_error (e.to_string(), 
-                  "Path was: ".to_string() + p.to_str().unwrap(), "FILE READING PROBLEM"),
+                "Path was: ".to_string() + p.to_str().unwrap(), "FILE READING PROBLEM"),
         
         AppError::IoWriteErrorWithPath(e, p) => print_error (e.to_string(), 
-                  "Path was: ".to_string() + p.to_str().unwrap(), "FILE WRITING PROBLEM"),
+                "Path was: ".to_string() + p.to_str().unwrap(), "FILE WRITING PROBLEM"),
 
         AppError::FileSystemError(p, d) => print_error (p, d, "FILE SYSTEM PROBLEM"),
         
         AppError::SerdeError(e) => print_error ("Error occureed when parsing JSON file".to_string(), 
-                    e.to_string(), "SERDE JSON ERROR"),
+                e.to_string(), "SERDE JSON ERROR"),
         
         AppError::DBPoolError(d, e) => print_error(d, e.to_string(), "DB POOL ERROR"),
   
         AppError::SqlxError(e, s) => print_error (e.to_string(), 
-                        format!("SQL was: {}", s),  "SQLX ERROR"),
+                format!("SQL was: {}", s),  "SQLX ERROR"),
 
         AppError::RegexError(e, d) => print_error(e.to_string(), d, "REGEX ISSUE"),
    

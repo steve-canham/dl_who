@@ -1,82 +1,281 @@
-/*
-using HtmlAgilityPack;
-using ScrapySharp.Extensions;
-using System.Text.RegularExpressions;
-namespace MDR_Downloader.Helpers;
+use regex::Regex;
 
-public static class StringExtensions
-{
-    public static string? Tidy(this string? input_string)
-    {
-        // Simple extension that returns null for null values and
-        // text based 'NULL equivalents', and otherwise trims the string
+pub trait StringExtensions {
+    fn tidy(&self) -> Option<String>;
+    fn replace_unicodes(&self) -> Option<String>;
+    fn replace_tags_and_unicodes(&self) -> Option<String>;
+}
 
-        if (input_string is null or "NULL" or "null" or "\"NULL\"" or "\"null\""
-            || input_string.Trim() == "")
+pub trait DateExtensions {
+    fn as_iso_date(&self) -> Option<String>;
+    fn get_time_units(&self) -> String; 
+}
+
+
+impl StringExtensions for String {
+    
+    fn tidy(&self) -> Option<String> {
+
+        if self == "NULL" ||  self == "null" ||  self == "\"NULL\"" ||  self == "\"null\""
+        ||  self.trim() == ""
         {
-            return null;
+            None
         }
-
-        if (!input_string.StartsWith('"'))
-        {
-            // some strings will have start and end quotes
-            // a start quote should indicate leaving both 
-
-            char[] chars1 = { ' ', ';' };
-            input_string = input_string.Trim(chars1);
+        else {
+            let trimmed: &str;
+            if self.starts_with("\"") {
+                let complex_trim = |c| c == ' ' || c == ';' || c == '"';
+                trimmed = self.trim_matches(complex_trim);
+            }
+            else {
+                let complex_trim = |c| c == ' ' || c == ';';
+                trimmed = self.trim_matches(complex_trim);
+            }
+            if trimmed == "" {
+                None
+            }
+            else {
+                Some(trimmed.to_owned())
+            }
         }
-        else
-        {
-            char[] chars2 = { '"', ' ', ';' };
-            input_string = input_string.Trim(chars2);
-        }
-
-        return input_string == "" ? null : input_string;
-
     }
 
 
-    public static string? ReplaceUnicodes(this string? input_string)
-    {
-        // Simple extension that returns null for null values and
-        // text based 'NULL equivalents', and otherwise trims the 
-        // string and replace escaped non-ascii codes.
-
-        if (input_string is null or "NULL" or "null" or "\"NULL\"" or "\"null\"" 
-            || input_string.Trim() == "")
+    fn replace_unicodes(&self) -> Option<String> {
+        if self == "NULL" ||  self == "null" ||  self == "\"NULL\"" ||  self == "\"null\""
+        ||  self.trim() == ""
         {
-            return null;
+            None
+        }
+        else {
+            let trimmed: &str;
+            if self.starts_with("\"") {
+                let complex_trim = |c| c == ' ' || c == ';' || c == '"';
+                trimmed = self.trim_matches(complex_trim);
+            }
+            else {
+                let complex_trim = |c| c == ' ' || c == ';';
+                trimmed = self.trim_matches(complex_trim);
+            }
+            if trimmed == "" {
+                None
+            }
+            else {
+                let mut output = trimmed.to_owned();
+                output = output.replace("&#32;", " ").replace("&#37;", "%");
+                output = output.replace("#gt;", ">").replace("#lt;", "<");       
+                output = output.replace("&#39;", "’").replace("&rsquo;", "’");
+                output = output.replace("&quot;", "'");
+                output = output.replace("&gt;", ">").replace("&lt;", "<");
+                output = output.replace("&amp;", "&");
+                Some(output)
+            }
+        }
+    }
+
+
+    fn replace_tags_and_unicodes(&self) -> Option<String> {
+        if self == "NULL" ||  self == "null" ||  self == "\"NULL\"" ||  self == "\"null\""
+        ||  self.trim() == ""
+        {
+            None
+        }
+        else {
+            let trimmed: &str;
+            if self.starts_with("\"") {
+                let complex_trim = |c| c == ' ' || c == ';' || c == '"';
+                trimmed = self.trim_matches(complex_trim);
+            }
+            else {
+                let complex_trim = |c| c == ' ' || c == ';';
+                trimmed = self.trim_matches(complex_trim);
+            }
+            if trimmed == "" {
+                None
+            }
+            else {
+                let mut output = trimmed.to_owned();
+                
+                output = output.replace("<br>", "\n");
+                output = output.replace("<br/>", "\n");
+                output = output.replace("<br />", "\n");
+                output = output.replace("\n\n", "\n").replace("\n \n", "\n");
+                output = output.replace(",,", ",");
+
+                output = output.replace("&#32;", " ").replace("&#37;", "%");
+                output = output.replace("#gt;", ">").replace("#lt;", "<");       
+                output = output.replace("&#39;", "’").replace("&rsquo;", "’");
+                output = output.replace("&quot;", "'");
+                output = output.replace("&gt;", ">").replace("&lt;", "<");
+                output = output.replace("&amp;", "&");
+                Some(output)
+            }
+        }
+    }
+}
+
+impl DateExtensions for String {
+    
+    fn as_iso_date(&self) -> Option<String> {
+
+        if self == "NULL" ||  self == "null" ||  self == "\"NULL\"" ||  self == "\"null\""
+        ||  self.trim() == ""
+        {
+            return None
         }
         
-        string output_string = input_string.Replace("&#32;", " ").Replace("&#37;", "%");
-        output_string = output_string.Replace("#gt;", ">").Replace("#lt;", "<");       
-        output_string = output_string.Replace("&#39;", "’").Replace("&rsquo;", "’");
-        output_string = output_string.Replace("&quot;", "'");
-        output_string = output_string.Replace("&gt;", ">").Replace("&lt;", "<");
-        output_string = output_string.Replace("&amp;", "&");
-        return output_string;
+        if self == "1900-01-01" || self == "01/01/1900" || self == "Jan  1 1900" || self == "Jan  1 1900 12:00AM"
+        {
+            return None
+        }
+            
+        let mut date_string: String;
+        let mut iso_date: String;
 
+        date_string = self.trim_matches('"').to_string();
+        date_string = date_string.replace("/", "-").replace(".", "-").replace(",", "");   // regularise delimiters
+        iso_date =  date_string.clone();   // as the initial default
+
+        let p1 = r#"^(19|20)\d{2}-(0?[1-9]|1[0-2])-(0?[1-9]|1\d|2\d|3[0-1])$"#;
+        let re1 = Regex::new(p1).unwrap();
+        let p2 = r#"^(0?[1-9]|1\d|2\d|3[0-1])-(0?[1-9]|1[0-2])-(19|20)\d{2}$"#;
+        let re2 = Regex::new(p2).unwrap();
+        let p3 = r#"^(0?[1-9]|1\d|2\d|3[0-1]) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (19|20)\d{2}$"#;
+        let re3 = Regex::new(p3).unwrap();
+        let p4 = r#"^(0?[1-9]|1\d|2\d|3[0-1]) (January|February|March|April|May|June|July|August|September|October|November|December) (19|20)\d{2}$"#;
+        let re4 = Regex::new(p4).unwrap();
+        let py = r#"(19|20)\d{2}$"#;
+        let re_yr = Regex::new(py).unwrap();
+        
+        if re1.is_match(&date_string) {   // yyyy_mm_dd
+            if date_string.len() == 10
+            {
+                iso_date = date_string;  // already OK
+            }
+            else {
+                let dash1 = &date_string.find('-').unwrap();
+                let dash2 = &date_string.rfind('-').unwrap();
+                let year_s = &date_string[..4];
+                let month_s = format!("{:0>2}", &date_string[(dash1 + 1)..(dash2 - dash1 - 1)]);
+                let day_s =  format!("{:0>2}", &date_string[(dash2 + 1)..]);
+
+                iso_date = format!("{}-{}-{}", year_s, month_s, day_s);
+            }
+        }
+        else if re2.is_match(&date_string) {   // dd_mm_yyyy
+            let dash1 = &date_string.find('-').unwrap();
+            let dash2 = &date_string.rfind('-').unwrap();
+            if re_yr.is_match(&date_string) {
+                let caps = re_yr.captures(&date_string).unwrap();
+                let year_s = &caps[0];
+                let month_s = format!("{:0>2}", &date_string[(dash1 + 1)..*dash2]);
+                let day_s =  format!("{:0>2}", &date_string[..*dash1]);
+                iso_date = format!("{}-{}-{}", year_s, month_s, day_s);
+            }
+        }
+        else if re3.is_match(&date_string) {        // dd_MMM_yyyy 
+            let dash1 = &date_string.find(' ').unwrap();
+            let dash2 = &date_string.rfind(' ').unwrap();
+            if re_yr.is_match(&date_string) {
+                let caps = re_yr.captures(&date_string).unwrap();
+                let year_s = &caps[0];
+                let month = &date_string[(dash1 + 1)..*dash2];
+                let month_s = match month{
+                    "Jan" => "01",
+                    "Feb" => "02",
+                    "Mar" => "03",
+                    "Apr" => "04",
+                    "May" => "05",
+                    "Jun" => "06",
+                    "Jul" => "07",
+                    "Aug" => "08",
+                    "Sep" => "09",
+                    "Oct" => "10",
+                    "Nov" => "11",
+                    "Dec" => "12",
+                        _  => "00",
+                };
+                let day_s =  format!("{:0>2}", &date_string[..*dash1]);
+                iso_date = format!("{}-{}-{}", year_s, month_s, day_s);
+            }
+        }
+        else if re4.is_match(&date_string) {   // dd_MMMM_yyyy
+            let dash1 = &date_string.find(' ').unwrap();
+            let dash2 = &date_string.rfind(' ').unwrap();
+            if re_yr.is_match(&date_string) {
+                let caps = re_yr.captures(&date_string).unwrap();
+                let year_s = &caps[0];
+                let month = &date_string[(dash1 + 1)..*dash2];
+                let month_s = match month{
+                    "January" => "01",
+                    "February" => "02",
+                    "March" => "03",
+                    "April" => "04",
+                    "May" => "05",
+                    "June" => "06",
+                    "July" => "07",
+                    "August" => "08",
+                    "September" => "09",
+                    "October" => "10",
+                    "November" => "11",
+                    "December" => "12",
+                    _ => "00",
+                };
+                let day_s =  format!("{:0>2}", &date_string[..*dash1]);
+                iso_date = format!("{}-{}-{}", year_s, month_s, day_s);
+            }
+        }
+
+        Some(iso_date)
     }
 
 
-    public static string? ReplaceHtmlTags(this string? input_string)
-    {
-        // Simple extension that returns null for null values and
-        // text based 'NULL equivalents', and otherwise trims the 
-        // string
-
-        if (input_string is null or "NULL" or "null" or "\"NULL\"" or "\"null\"" 
-            || input_string.Trim() == "")
+    fn get_time_units(&self) -> String {
+        if self.trim() == ""
         {
-            return null;
+            return "".to_string();
         }
 
-        string output_string = input_string.Replace("<br>", "\n");
-        output_string = output_string.Replace("<br/>", "\n");
-        output_string = output_string.Replace("<br />", "\n");
-        output_string = output_string.Replace("\n\n", "\n").Replace("\n \n", "\n");
+        let time_string = self.to_lowercase();
+        let units = match time_string  
+        { 
+            _ if time_string.contains("year") => "Years",
+            _ if time_string.contains("month") => "Months",
+            _ if time_string.contains("week") => "Weeks",
+            _ if time_string.contains("day") => "Days",
+            _ if time_string.contains("hour") => "Hours",
+            _ if time_string.contains("min") => "Minutes",
+            _ => &("Other (".to_string() + &time_string + ")"),
+        };
+        return units.to_string()
+    }
 
-        return output_string;
+}
+
+
+
+    /* 
+    fn replace_nbr_spaces(&self) -> Option<String> {
+        if self == "NULL" ||  self == "null" ||  self == "\"NULL\"" ||  self == "\"null\""
+        ||  self.trim() == ""
+        {
+            None
+        }
+        else {
+            Some(self.to_owned())
+        }
+
+    }
+
+    fn compress_spaces(&self) -> Option<String> {
+        if self == "NULL" ||  self == "null" ||  self == "\"NULL\"" ||  self == "\"null\""
+        ||  self.trim() == ""
+        {
+            None
+        }
+        else {
+            Some(self.to_owned())
+        }
     }
 
 
@@ -124,25 +323,7 @@ public static class StringExtensions
         return output_string;
     }
     
-    
-    internal static string? TidyYodaText(this string input)
-    {
-        if (string.IsNullOrEmpty(input))
-        {
-            return null;
-        }
-        string? output = input.Replace("\n", "").Replace("\r", "").Trim();
-        if (string.IsNullOrEmpty(output))
-        {
-            return null;
-        }
-        output = output.ReplaceUnicodes();
-        output = output?.ReplaceNBSpaces();
-        output = output?.Replace("??", " ").Replace("&#039;", "’");
-        return output?.Replace("'", "’");
-    }
-    
-
+       
 
     public static string? lang_3_to_2(this string input_lang_code)
     {
@@ -175,107 +356,7 @@ public static class StringExtensions
 
 public static class DateExtensions
 {
-    public static int GetMonthAsInt(this string month_name)
-    {
-        try
-        {
-            return (int)Enum.Parse<MonthsFull>(month_name);
-        }
-        catch (ArgumentException)
-        {
-            return 0;
-        }
-    }
-
-
-    public static int GetMonth3AsInt(this string month_abbrev)
-    {
-        try
-        {
-            return (int)Enum.Parse<Months3>(month_abbrev);
-        }
-        catch (ArgumentException)
-        {
-            return 0;
-        }
-    }
-
-    public static string? AsISODate(this string? input_string)
-    {
-        string? interim_string = input_string.Tidy();
-
-        if (interim_string is null or "1900-01-01" or "01/01/1900" or "Jan  1 1900" or "Jan  1 1900 12:00AM")
-        {
-            return null;
-        }
-
-        // First make the delimiter constant and remove commas,
-        // before checking against regexes for the different date formats.
-
-        string date_string = interim_string.Replace('/', '-').Replace('.', '-').Replace(",", "");
-
-        string yyyy_mm_dd = @"^(19|20)\d{2}-(0?[1-9]|1[0-2])-(0?[1-9]|1\d|2\d|3[0-1])$";
-        string dd_mm_yyyy = @"^(0?[1-9]|1\d|2\d|3[0-1])-(0?[1-9]|1[0-2])-(19|20)\d{2}$";
-        string dd_MMM_yyyy = @"^(0?[1-9]|1\d|2\d|3[0-1]) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (19|20)\d{2}$";
-        string dd_MMMM_yyyy = @"^(0?[1-9]|1\d|2\d|3[0-1]) (January|February|March|April|May|June|July|August|September|October|November|December) (19|20)\d{2}$";
-        
-        if (Regex.Match(date_string, yyyy_mm_dd).Success)
-        {
-            if (date_string.Length == 10)
-            {
-                return date_string;  // already OK
-            }
-            int dash1 = date_string.IndexOf('-');
-            int dash2 = date_string.LastIndexOf('-');
-            string year_s = date_string[..4];
-            string month_s = date_string[(dash1 + 1)..(dash2 - dash1 - 1)];
-            if (month_s.Length == 1) month_s = "0" + month_s;
-            string day_s = date_string[(dash2 + 1)..];
-            if (day_s.Length == 1) day_s = "0" + day_s;
-            return year_s + "-" + month_s + "-" + day_s;
-        }
-        else if (Regex.Match(date_string, dd_mm_yyyy).Success)
-        {
-            int dash1 = date_string.IndexOf('-');
-            int dash2 = date_string.LastIndexOf('-');
-            string year_s = date_string[^4..];
-            string month_s = date_string[(dash1 + 1)..dash2];
-            if (month_s.Length == 1) month_s = "0" + month_s;
-            string day_s = date_string[..(dash1)];
-            if (day_s.Length == 1) day_s = "0" + day_s;
-            return year_s + "-" + month_s + "-" + day_s;
-        }
-        else if (Regex.Match(date_string, dd_MMM_yyyy).Success)
-        {
-            int dash1 = date_string.IndexOf(' ');
-            int dash2 = date_string.LastIndexOf(' ');
-            string year_s = date_string[^4..];
-            string month = date_string[(dash1 + 1)..dash2];
-            string month_s = month.GetMonth3AsInt().ToString("00");
-            string day_s = date_string[..(dash1)];
-            if (day_s.Length == 1) day_s = "0" + day_s;
-            return year_s + "-" + month_s + "-" + day_s;
-        }
-        else if (Regex.Match(date_string, dd_MMMM_yyyy).Success)
-        {
-            int dash1 = date_string.IndexOf(' ');
-            int dash2 = date_string.LastIndexOf(' ');
-            string year_s = date_string[^4..];
-            string month = date_string[(dash1 + 1)..dash2];
-            string month_s = month.GetMonthAsInt().ToString("00");
-            string day_s = date_string[..(dash1)];
-            if (day_s.Length == 1) day_s = "0" + day_s;
-            return year_s + "-" + month_s + "-" + day_s;
-        }
-        else
-        {
-            // To investigate other date forms.....
-            
-            return interim_string;
-        }
-    }
-
-
+   
     public static string? GetTimeUnits(this string? input_string)
     {
         if (string.IsNullOrEmpty(input_string))
@@ -419,22 +500,5 @@ public class SplitDate
         date_string = _date_string;
     }
 }
-
-
-public enum MonthsFull
-{
-    January = 1, February, March, April, May, June,
-    July, August, September, October, November, December
-};
-
-
-public enum Months3
-{
-    Jan = 1, Feb, Mar, Apr, May, Jun,
-    Jul, Aug, Sep, Oct, Nov, Dec
-};
-
-
-
 
 */
