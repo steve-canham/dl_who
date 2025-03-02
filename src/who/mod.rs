@@ -51,7 +51,7 @@ pub fn process_single_file(file_path: &PathBuf, _json_path: &PathBuf, res: &mut 
         // update res
       
         i += 1;
-        if i > 2 {
+        if i > 10 {
             break;
         }
     }

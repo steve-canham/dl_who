@@ -523,18 +523,18 @@ pub struct SecondaryId
 {
     pub source_field: String,
     pub sec_id: String,
-    pub processed_id: Option<String>,
-    pub sec_id_source: Option<usize>,
-    pub sec_id_type_id: Option<usize>,
-    pub sec_id_type: Option<String>,
+    pub processed_id: String,
+    pub sec_id_source: usize,
+    pub sec_id_type_id: usize,
+    pub sec_id_type: String,
 }
 
 #[allow(dead_code)]
 impl SecondaryId {
 
-    pub fn new(source_field: String, sec_id: String,
-        processed_id: Option<String>, sec_id_source: Option<usize>,
-        sec_id_type_id: Option<usize>, sec_id_type: Option<String>)
+    pub fn new(source_field: String, sec_id: String, 
+        processed_id: String, sec_id_source: usize,
+        sec_id_type_id: usize, sec_id_type: String)
          -> Self {SecondaryId {  
                 source_field,
                 sec_id,
@@ -545,15 +545,15 @@ impl SecondaryId {
             }
     }
   
-    pub fn short_new(source_field: String, sec_id: String,
-        processed_id: Option<String>, sec_id_source: Option<usize>)
+    pub fn new_from_base(source_field: String, sec_id: String,
+        sid: SecIdBase)
          -> Self {SecondaryId {  
             source_field,
             sec_id,
-            processed_id,
-            sec_id_source,
-            sec_id_type_id: None,
-            sec_id_type: None,
+            processed_id: sid.processed_id,
+            sec_id_source: sid.sec_id_source,
+            sec_id_type_id: sid.sec_id_type_id,
+            sec_id_type: sid.sec_id_type,
          }
     }
     
@@ -563,17 +563,17 @@ impl SecondaryId {
 #[allow(dead_code)]
 pub struct SecIdBase
 {
-    pub processed_id: Option<String>,
-    pub sec_id_source: Option<usize>,
-    pub sec_id_type_id: Option<usize>,
-    pub sec_id_type: Option<String>,
+    pub processed_id: String,
+    pub sec_id_source: usize,
+    pub sec_id_type_id: usize,
+    pub sec_id_type: String,
 } 
 
 #[allow(dead_code)]
 impl SecIdBase {
 
-    pub fn new(processed_id: Option<String>, sec_id_source: Option<usize>,
-        sec_id_type_id: Option<usize> , sec_id_type: Option<String>) -> Self {
+    pub fn new(processed_id: String, sec_id_source: usize,
+        sec_id_type_id: usize , sec_id_type: String) -> Self {
         SecIdBase {  
             processed_id,
             sec_id_source,
@@ -581,8 +581,8 @@ impl SecIdBase {
             sec_id_type,
          }
     }
-
-    pub fn short_new(processed_id: Option<String>, sec_id_source: Option<usize>) -> Self {
+/*
+    pub fn short_new(processed_id: String, sec_id_source: usize) -> Self {
         SecIdBase {  
             processed_id,
             sec_id_source,
@@ -590,7 +590,9 @@ impl SecIdBase {
             sec_id_type: None,
         }
     }
-}
+*/
+} 
+
 
 #[derive(Debug)]
 #[allow(dead_code)]

@@ -1,27 +1,30 @@
 use super::file_model::{SecondaryId, SecIdBase, WhoStudyFeature};
+use std::sync::LazyLock;
+use regex::Regex;
 
-pub fn get_source_id(sd_sid: &str) -> usize {
-    match sd_sid {
-        _ if sd_sid.starts_with("NCT") => 100120,
-        _ if sd_sid.starts_with("CHICTR") => 100118,
-        _ if sd_sid.starts_with("CTRI") => 100121,
-        _ if sd_sid.starts_with("JPRN") =>  100127,
-        _ if sd_sid.starts_with("EUCTR") => 100123,
-        _ if sd_sid.starts_with("ISRCTN") => 100126,
-        _ if sd_sid.starts_with("ACTRN") => 100116,
-        _ if sd_sid.starts_with("DRKS") => 100124,
-        _ if sd_sid.starts_with("IRCT") => 100125,
-        _ if sd_sid.starts_with("KCT") =>  100119,
-        _ if sd_sid.starts_with("NL") || sd_sid.starts_with("NTR") => 100132,
-        _ if sd_sid.starts_with("CTIS") => 110428,
-        _ if sd_sid.starts_with("RBR") => 100117, 
-        _ if sd_sid.starts_with("RPCEC") => 100122,
-        _ if sd_sid.starts_with("PACTR") => 100128,
-        _ if sd_sid.starts_with("PER") =>  100129,
-        _ if sd_sid.starts_with("SLCTR") => 100130,
-        _ if sd_sid.starts_with("TCTR") => 100131,
-        _ if sd_sid.starts_with("LBCTR") => 101989,
-        _ if sd_sid.starts_with("ITMCTR") => 109108,
+pub fn get_source_id(sd_sid: &String) -> usize {
+    let usid = sd_sid.to_uppercase();
+    match usid {
+        _ if usid.starts_with("NCT") => 100120,
+        _ if usid.starts_with("CHICTR") => 100118,
+        _ if usid.starts_with("CTRI") => 100121,
+        _ if usid.starts_with("JPRN") =>  100127,
+        _ if usid.starts_with("EUCTR") => 100123,
+        _ if usid.starts_with("ISRCTN") => 100126,
+        _ if usid.starts_with("ACTRN") => 100116,
+        _ if usid.starts_with("DRKS") => 100124,
+        _ if usid.starts_with("IRCT") => 100125,
+        _ if usid.starts_with("KCT") =>  100119,
+        _ if usid.starts_with("NL") || sd_sid.starts_with("NTR") => 100132,
+        _ if usid.starts_with("CTIS") => 110428,
+        _ if usid.starts_with("RBR") => 100117, 
+        _ if usid.starts_with("RPCEC") => 100122,
+        _ if usid.starts_with("PACTR") => 100128,
+        _ if usid.starts_with("PER") =>  100129,
+        _ if usid.starts_with("SLCTR") => 100130,
+        _ if usid.starts_with("TCTR") => 100131,
+        _ if usid.starts_with("LBCTR") => 101989,
+        _ if usid.starts_with("ITMCTR") => 109108,
         _ => 0
     }
 }
@@ -421,7 +424,7 @@ pub fn add_phase_features(phase_list: &String) -> Vec<WhoStudyFeature>
 }
 
 
-    pub fn  split_and_add_ids(sd_sid: &String, in_string: &String, source_field: &String) -> Vec<SecondaryId>
+    pub fn  split_and_add_ids(sd_sid: &String, in_string: &String, source_field: &str) -> Vec<SecondaryId>
     {
         // in_string already known to be non-null, non-empty.
 
@@ -467,264 +470,405 @@ pub fn add_phase_features(phase_list: &String) -> Vec<WhoStudyFeature>
                     if (add_id)
                     {*/
 
-                    id_list.push(SecondaryId::new(source_field.to_string(), secid.to_string(),
-                    sec_id_base.processed_id, sec_id_base.sec_id_source,
-                    sec_id_base.sec_id_type_id, sec_id_base.sec_id_type));
+                    id_list.push(SecondaryId::new_from_base(source_field.to_string(), 
+                                                    secid.to_string(), sec_id_base));
 
-    
                 }
             }
         }
 
         id_list  // may overlap ids with the ids from the other source fields
     }
-     
+    
 
-    pub fn get_sec_id_details(sec_id: &str, sd_sid: &String) -> SecIdBase 
+    pub fn get_sec_id_details(sec_id: &str, sd_sid: &str) -> SecIdBase
     {
-        let interim_id: &str;
-        let processed_id: Option<String> = None;
-        let sec_id_source: Option<usize> = None;
-        let isec_id_type_id: Option<usize> = None;
-        
-        if sec_id.Contains("NCT")
-        {
-            let interim_id = sec_id.replace("NCT ", "NCT").replace("NCTNumber", "");
-            let re = Regex::new(r"NCT[0-9]{8}").unwrap();
-
-            if (Regex.Match(interim_id, @"NCT[0-9]{8}").Success && 
-            processed_id != "NCT11111111" && processed_id != "NCT99999999" 
-            && processed_id !=  "NCT12345678" && processed_id != "NCT87654321")
-            {
-                processed_id = Regex.Match(interim_id, @"NCT[0-9]{8}").Value;
-                sec_id_source = 100120;
-                sec_id_type_id = 11;
+        let mut sid = contains_nct(sec_id);
+        if sid.is_none() {
+            sid = contains_euctr(sec_id);
+            if sid.is_none() {
+                sid = contains_isrctn(sec_id);
+                if sid.is_none() {
+                    sid = contains_actrn(sec_id);
+                    if sid.is_none() {
+                        sid = contains_drks(sec_id);
+                        if sid.is_none() {
+                            sid = contains_ctri(sec_id);
+                            if sid.is_none() {
+                                sid = contains_who(sec_id);
+                            }
+                        }
+                    }
+                }
             }
         }
 
-        else if Regex.Match(sec_id, @"[0-9]{4}-[0-9]{6}-[0-9]{2}").Success
-        {
-            processed_id = Regex.Match(sec_id, @"[0-9]{4}-[0-9]{6}-[0-9]{2}").Value;
-            sec_id_source = 100123;
-            sec_id_type_id = 11;
+        if sid.is_none() {
+            sid = contains_umin(sec_id);
+            if sid.is_none() {
+                sid = contains_jcrts(sec_id);  
+                if sid.is_none() {
+                    sid = contains_jcrt(sec_id);  
+                    if sid.is_none() {
+                        sid = contains_jprn(sec_id);  
+                        if sid.is_none() {
+                            sid = contains_nl(sec_id);
+                            if sid.is_none() {
+                                sid = contains_ntr(sec_id);
+                            }
+                        }
+                    }
+                }
+            }
         }
 
-        else if sec_id.Contains("ISRCTN")
+        if sid.is_none() && sd_sid.starts_with("RBR")
         {
-            interim_id = sec_id.Replace("ISRCTN ", "ISRCTN");
-            interim_id = interim_id.Replace("(ISRCTN)", "");
-            interim_id = interim_id.Replace("ISRCTN(International", "");
-            interim_id = interim_id.Replace("ISRCTN: ", "ISRCTN");
-            interim_id = interim_id.Replace("ISRCTNISRCTN", "ISRCTN");
+            sid = contains_anvisa(sec_id);
+            if sid.is_none() {
+                sid = contains_brethics(sec_id);
+            }
+        }
+
+               
+        if sid.is_none() {    // still...
             
-            if (Regex.Match(interim_id, @"ISRCTN[0-9]{8}").Success)
-            {
-                processed_id = Regex.Match(interim_id, @"ISRCTN[0-9]{8}").Value;
-                sec_id_source = 100126;
-                sec_id_type_id = 11;
+            let upid = sec_id.to_uppercase();
+            let sec_id_source = match upid {
+            _ if upid.starts_with("CHICTR") => 100118,
+            _ if upid.starts_with("IRCT") => 100125,
+            _ if upid.starts_with("KCT") =>  100119,
+            _ if upid.starts_with("CTIS") => 110428,
+            _ if upid.starts_with("RBR") => 100117, 
+            _ if upid.starts_with("RPCEC") => 100122,
+            _ if upid.starts_with("PACTR") => 100128,
+            _ if upid.starts_with("PER") =>  100129,
+            _ if upid.starts_with("SLCTR") => 100130,
+            _ if upid.starts_with("TCTR") => 100131,
+            _ if upid.starts_with("LBCTR") => 101989,
+            _ if upid.starts_with("ITMCTR") => 109108,
+            _ if upid.starts_with("CHIMCTR") => 104545,
+            _ => 0
+            };
+
+            if sec_id_source > 0 {
+                sid = Some(SecIdBase{
+                    processed_id: sec_id.to_string(),
+                    sec_id_source: sec_id_source, 
+                    sec_id_type_id: 11,
+                    sec_id_type: "Trial Registry ID".to_string(),
+                })
             }
         }
-
-        else if Regex.Match(sec_id, @"ACTRN[0-9]{14}").Success
-        {
-            processed_id = Regex.Match(sec_id, @"ACTRN[0-9]{14}").Value;
-            sec_id_source = 100116;
-            sec_id_type_id = 11;
-        }
-
-        else if Regex.Match(sec_id, @"DRKS[0-9]{8}").Success
-        {
-            processed_id = Regex.Match(sec_id, @"DRKS[0-9]{8}").Value;
-            sec_id_source = 100124;
-            sec_id_type_id = 11;
-        }
-
-        else if Regex.Match(sec_id, @"CTRI/[0-9]{4}/[0-9]{2,3}/[0-9]{6}").Success
-        {
-            processed_id = Regex.Match(sec_id, @"CTRI/[0-9]{4}/[0-9]{2,3}/[0-9]{6}").Value;
-            processed_id = processed_id.Replace('/', '-');  // internal representation for CTRI
-            sec_id_source = 100121;
-            sec_id_type_id = 11;
-        }
-
-        else if Regex.Match(sec_id, @"1111-[0-9]{4}-[0-9]{4}").Success
-        {
-            processed_id = "U" + Regex.Match(sec_id, @"1111-[0-9]{4}-[0-9]{4}").Value;
-            sec_id_source = 100115;
-            sec_id_type_id = 11;
-        }
-
-        else if Regex.Match(sec_id, @"UMIN[0-9]{9}").Success || Regex.Match(sec_id, @"UMIN-CTR[0-9]{9}").Success
-        {
-            processed_id = "JPRN-UMIN" + Regex.Match(sec_id, @"[0-9]{9}").Value;
-            sec_id_source = 100127;
-            sec_id_type_id = 11;
-        }
-
-        else if Regex.Match(sec_id, @"jRCTs[0-9]{9}").Success
-        {
-            processed_id = "JPRN-jRCTs" + Regex.Match(sec_id, @"[0-9]{9}").Value;
-            sec_id_source = 100127;
-            sec_id_type_id = 11;
-        }
-
-        else if Regex.Match(sec_id, @"jRCT[0-9]{10}").Success
-        {
-            processed_id = "JPRN-jRCT" + Regex.Match(sec_id, @"[0-9]{10}").Value;
-            sec_id_source = 100127;
-            sec_id_type_id = 11;
-        }
-
-        else if sec_id.StartsWith("JPRN")
-        {
-            if (Regex.Match(sec_id, @"^[0-9]{8}$").Success)
-            {
-                processed_id = "JPRN-UMIN" + Regex.Match(sec_id, @"[0-9]{8}").Value;
-                sec_id_source = 100127;
-                sec_id_type_id = 11;
-            }
-            else
-            {
-                processed_id = sec_id;
-                sec_id_source = 100127;
-                sec_id_type_id = 11;
-            }
-        }
-        
-        else if sec_id.StartsWith("RBR")
-        {
-            sec_id_source = 100117;
-            processed_id = sec_id;
-            sec_id_type_id = 11;
-        }
-        
-        else if sec_id.StartsWith("ChiCTR")
-        {
-            sec_id_source = 100118;
-            processed_id = sec_id;
-            sec_id_type_id = 11;
-        }
-
-        else if sec_id.StartsWith("ChiMCTR")
-        {
-            sec_id_source = 104545;   
-            processed_id = sec_id;
-            sec_id_type_id = 11;
-        }
-
-        else if sec_id.StartsWith("KCT")
-        {
-            sec_id_source = 100119;
-            processed_id = sec_id;
-            sec_id_type_id = 11;
-        }
-        
-        else if sec_id.StartsWith("RPCEC")
-        {
-            sec_id_source = 100122;
-            processed_id = sec_id;
-            sec_id_type_id = 11;
-        }
-        
-        else if sec_id.StartsWith("DRKS")
-        {
-            sec_id_source = 100124;
-            processed_id = sec_id;
-            sec_id_type_id = 11;
-        }
-        
-        else if sec_id.StartsWith("IRCT")
-        {
-            sec_id_source = 100125;
-            processed_id = sec_id;
-            sec_id_type_id = 11;
-        }
-        
-        else if sec_id.StartsWith("PACTR")
-        {
-            sec_id_source = 100128;
-            processed_id = sec_id;
-            sec_id_type_id = 11;
-        }
-        
-        else if sec_id.StartsWith("PER")
-        {
-            sec_id_source = 100129;
-            processed_id = sec_id;
-            sec_id_type_id = 11;
-        }
-        
-        else if sec_id.StartsWith("SLCTR")
-        {
-            sec_id_source = 100130;
-            processed_id = sec_id;
-            sec_id_type_id = 11;
-        }
-       
-        else if sec_id.StartsWith("TCTR")
-        {
-            sec_id_source = 100131;
-            processed_id = sec_id;
-            sec_id_type_id = 11;
-        }
-        
-        // Avoid Dutch CCMO numbers, which also start with NL, by regex tests
-        
-        else if sec_id.StartsWith("NL") && Regex.Match(sec_id, @"^NL\d{1,4}$").Success
-        {
-            sec_id_source = 100132;
-            processed_id = sec_id;
-            sec_id_type_id = 11;
-        }
-        
-        else if sec_id.StartsWith("NTR") && Regex.Match(sec_id, @"^NTR\d{1,4}$").Success
-        {
-            sec_id_source = 100132;
-            processed_id = sec_id;
-            sec_id_type_id = 45;      // obsolete dutch registry id
-        }
-        
-        else if sec_id.StartsWith("LBCTR")
-        {
-            sec_id_source = 101989;
-            processed_id = sec_id;
-            sec_id_type_id = 11;
-        }
-
-        if sd_sid.StartsWith("RBR")
-        {
-            // Extract Brazilian ethics Ids
+              
+        if sid.is_none() {
             
-            if (Regex.Match(sec_id, @"[0-9]{8}.[0-9].[0-9]{4}.[0-9]{4}").Success)
-            {
-                sec_id_source = 102000;  // Brazilian regulatory authority, ANVISA
-                processed_id = Regex.Match(sec_id, @"[0-9]{8}.[0-9].[0-9]{4}.[0-9]{4}").Value;
-                sec_id_type_id = 41;
-            }
-
-            if (Regex.Match(sec_id, @"[0-9].[0-9]{3}.[0-9]{3}").Success)
-            {
-                sec_id_source = 102001;  // Brazilian ethics committee approval number
-                processed_id = Regex.Match(sec_id, @"[0-9].[0-9]{3}.[0-9]{3}").Value;
-                sec_id_type_id = 12;
-            }
+            // Return the original secondary id without any source.
+            sid = Some(SecIdBase{
+                processed_id: sec_id.to_string(),
+                sec_id_source: 0, 
+                sec_id_type_id: 0,
+                sec_id_type: "?".to_string(),
+            })
         }
-
-        string? sec_id_type = sec_id_type_id switch
-        {
-            11 => "Trial Registry ID",
-            45 => "Obsolete NTR number",
-            41 => "Regulatory Body ID",
-            12 => "Ethics Review ID",
-            _ => null
-        };
-       
-        // Return the source / processed id process if discovery successful,
-        // otherwise return the original secondary id without any source.
         
-        return processed_id is not null 
-            ? new SecIdBase(processed_id, sec_id_source, sec_id_type_id, sec_id_type) 
-            : new SecIdBase(sec_id, null, null, null) ;
+        sid.unwrap()   // always has a value
+
     }
+
+    
+    // Collection of regex check functions, where the regex is stored
+    // in a static lazy lock variable - i.e. it needs instantiating onbly once.
+
+    fn contains_nct(hay: &str) -> Option<SecIdBase> {
+        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"NCT[0-9]{8}").unwrap());
+        let hay2 = hay.replace("NCT ", "NCT").replace("NCTNumber", "");
+        match RE.captures(&hay2) {
+            Some(s) => {
+            let id = &s[0];
+            if id == "NCT11111111" || id == "NCT99999999" 
+            || id == "NCT12345678" || id == "NCT87654321"{
+                None
+                }
+                else {
+                    Some(SecIdBase{
+                        processed_id: id.to_string(),
+                        sec_id_source: 100120, 
+                        sec_id_type_id: 11,
+                        sec_id_type: "Trial Registry ID".to_string(),
+                    })
+                }
+            },
+            None => None,
+        }  
+    }
+
+    fn contains_euctr(hay: &str) -> Option<SecIdBase> {
+        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[0-9]{4}-[0-9]{6}-[0-9]{2}-").unwrap());
+        match RE.captures(hay) {
+            Some(s) => {
+                let id = &s[0];
+                let processed_id = format!("EUCTR{}", &id[0..14]);
+                Some(SecIdBase{
+                    processed_id: processed_id.to_string(),
+                    sec_id_source: 100123, 
+                    sec_id_type_id: 11,
+                    sec_id_type: "Trial Registry ID".to_string(),
+                })
+            },
+            None => None,
+        }
+    }
+
+    fn contains_isrctn(hay: &str) -> Option<SecIdBase> {
+        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"ISRCTN[0-9]{8}").unwrap());
+        let mut hay2 = hay.replace("ISRCTN ", "ISRCTN").replace("(ISRCTN)", "");
+        hay2 = hay2.replace("ISRCTN(International", "");
+        hay2 = hay2.replace("ISRCTN: ", "ISRCTN");
+        hay2 = hay2.replace("ISRCTNISRCTN", "ISRCTN");
+        match RE.captures(&hay2) {
+            Some(s) => {
+                let id = &s[0];
+                Some(SecIdBase{
+                    processed_id: id.to_string(),
+                    sec_id_source: 100126, 
+                    sec_id_type_id: 11,
+                    sec_id_type: "Trial Registry ID".to_string(),
+                })
+            },
+            None => None,
+        }
+    }
+
+    fn contains_actrn(hay: &str) -> Option<SecIdBase> {
+        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"ACTRN[0-9]{14}").unwrap());
+        match RE.captures(hay) {
+            Some(s) => {
+                let id = &s[0];
+                Some(SecIdBase{
+                    processed_id: id.to_string(),
+                    sec_id_source: 100116, 
+                    sec_id_type_id: 11,
+                    sec_id_type: "Trial Registry ID".to_string(),
+                })
+            },
+            None => None,
+        }
+    }
+
+    fn contains_drks(hay: &str) -> Option<SecIdBase> {
+        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"DRKS[0-9]{8}").unwrap());
+        match RE.captures(hay) {
+            Some(s) => {
+                let id = &s[0];
+                Some(SecIdBase{
+                    processed_id: id.to_string(),
+                    sec_id_source: 100124, 
+                    sec_id_type_id: 11,
+                    sec_id_type: "Trial Registry ID".to_string(),
+                })
+            },
+            None => None,
+        }
+    }
+
+    fn contains_ctri(hay: &str) -> Option<SecIdBase> {
+        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"CTRI/[0-9]{4}/[0-9]{2,3}/[0-9]{6}").unwrap());
+        match RE.captures(hay) {
+            Some(s) => {
+                let id = &s[0];
+                let processed_id = id.replace("/", "-");  // internal representation for CTRI
+                Some(SecIdBase{
+                    processed_id: processed_id,
+                    sec_id_source: 100120, 
+                    sec_id_type_id: 11,
+                    sec_id_type: "Trial Registry ID".to_string(),
+                })
+            },
+            None => None,
+        }
+    }
+
+    fn contains_who(hay: &str) -> Option<SecIdBase> {
+        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"1111-[0-9]{4}-[0-9]{4}").unwrap());
+        match RE.captures(hay) {
+            Some(s) => {
+                let id = &s[0];
+                let processed_id = format!("U{}", id);  // internal representation for CTRI
+                Some(SecIdBase{
+                    processed_id: processed_id,
+                    sec_id_source: 100115, 
+                    sec_id_type_id: 11,
+                    sec_id_type: "Trial Registry ID".to_string(),
+                })
+            },
+            None => None,
+        }
+    }
+
+    fn contains_umin(hay: &str) -> Option<SecIdBase> {
+        static RE1: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"UMIN[0-9]{9}").unwrap());
+        static RE2: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"UMIN-CTR[0-9]{9}").unwrap());
+        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[0-9]{9}").unwrap());
+        if RE1.is_match(hay) || RE2.is_match(hay) {
+            match RE.captures(hay) {
+                Some(s) => {
+                    let id = &s[0];
+                    let processed_id = format!("JPRN-UMIN{}", id);  
+                    Some(SecIdBase{
+                        processed_id: processed_id,
+                        sec_id_source: 100127, 
+                        sec_id_type_id: 11,
+                        sec_id_type: "Trial Registry ID".to_string(),
+                    })
+                },
+                None => None,
+            }
+        }
+        else {
+            None
+        }
+    }
+    
+    fn contains_jcrts(hay: &str) -> Option<SecIdBase> {
+        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"jRCTs[0-9]{9}").unwrap());
+        match RE.captures(hay) {
+            Some(s) => {
+                let id = Some(&s[0]);
+                let processed_id = format!("JPRN-{:?}", id);  // internal representation for CTRI
+                Some(SecIdBase{
+                    processed_id: processed_id,
+                    sec_id_source: 100127, 
+                    sec_id_type_id: 11,
+                    sec_id_type: "Trial Registry ID".to_string(),
+                })
+            },
+            None => None,
+        }
+    }
+
+    fn contains_jcrt(hay: &str) -> Option<SecIdBase> {
+        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"jRCT[0-9]{10}").unwrap());
+        match RE.captures(hay) {
+            Some(s) => {
+                let id = Some(&s[0]);
+                let processed_id = format!("JPRN-{:?}", id);  // internal representation for CTRI
+                Some(SecIdBase{
+                    processed_id: processed_id,
+                    sec_id_source: 100127, 
+                    sec_id_type_id: 11,
+                    sec_id_type: "Trial Registry ID".to_string(),
+                })
+            },
+            None => None,
+        }
+    }
+
+    fn contains_jprn(hay: &str) -> Option<SecIdBase> {
+        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[0-9]{8}").unwrap());
+        if hay.starts_with("JPRN") {
+            if RE.is_match(hay) {
+                match RE.captures(hay) {
+                    Some(s) => {
+                        let id = &s[0];
+                        let processed_id = format!("JPRN-UMIN{}", id);  // internal representation for CTRI
+                        Some(SecIdBase{
+                            processed_id: processed_id,
+                            sec_id_source: 100127, 
+                            sec_id_type_id: 11,
+                            sec_id_type: "Trial Registry ID".to_string(),
+                        })
+                    },
+                    None => None,
+                }
+            }
+            else {
+                Some(SecIdBase{
+                    processed_id: hay.to_string(),
+                    sec_id_source: 100127, 
+                    sec_id_type_id: 11,
+                    sec_id_type: "Trial Registry ID".to_string(),
+                })
+            }
+        }
+        else {
+            None
+        }
+    }
+        
+    fn contains_nl(hay: &str) -> Option<SecIdBase> {
+        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^NL\d{1,4}$").unwrap());
+        match RE.captures(hay) {
+            Some(s) => {
+                let id = &s[0];
+                Some(SecIdBase{
+                    processed_id: id.to_string(),
+                    sec_id_source: 100132, 
+                    sec_id_type_id: 11,
+                    sec_id_type: "Trial Registry ID".to_string(),
+                })
+            },
+            None => None,
+        }
+    }
+
+    fn contains_ntr(hay: &str) -> Option<SecIdBase> {
+        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^NTR\d{1,4}$").unwrap());
+        match RE.captures(hay) {
+            Some(s) => {
+                let id = &s[0];
+                Some(SecIdBase{
+                    processed_id: id.to_string(),
+                    sec_id_source: 100132, 
+                    sec_id_type_id: 45,
+                    sec_id_type: "Obsolete NTR number".to_string(),
+                })
+            },
+            None => None,
+        }
+    }
+
+    fn contains_anvisa(hay: &str) -> Option<SecIdBase> {
+        if hay.starts_with("RBR") {
+            static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[0-9]{8}.[0-9].[0-9]{4}.[0-9]{4}").unwrap());
+            match RE.captures(hay) {
+                Some(s) => {
+                    let id = &s[0];
+                    Some(SecIdBase{
+                        processed_id: id.to_string(),
+                        sec_id_source: 102000,  // Brazilian regulatory authority, ANVISA
+                        sec_id_type_id: 41,
+                        sec_id_type: "Regulatory Body ID".to_string(),
+                    })},
+                None => None,
+            } 
+        }
+        else {
+            None
+        }
+    }
+
+    fn contains_brethics(hay: &str) -> Option<SecIdBase> {
+        if hay.starts_with("RBR") {
+            static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[0-9].[0-9]{3}.[0-9]{3}").unwrap());
+            match RE.captures(hay) {
+                Some(s) => {
+                    let id = &s[0];
+                    Some(SecIdBase{
+                        processed_id: id.to_string(),
+                        sec_id_source: 102001,  // Brazilian ethics committee approval number
+                        sec_id_type_id: 12,
+                        sec_id_type: "Ethics Review ID".to_string(),
+                    })},
+                None => None,
+            }
+        }
+        else {
+            None
+        }
+    }
+
+
+
 
 

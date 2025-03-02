@@ -3,6 +3,7 @@
 //use crate::DownloadResult;
 
 use regex::Regex;
+use std::sync::LazyLock;
 use log::error;
 use super::who_helper::{get_db_name, get_source_id, get_status, 
     get_conditions, split_and_dedup_countries, 
@@ -15,14 +16,14 @@ use super::file_model::{WHOLine, WHORecord, WhoStudyFeature, SecondaryId};
 pub fn process_line(w: WHOLine, i: i32) -> Option<i32>  {
 
     let sid = w.trial_id.replace("/", "-").replace("\\", "-").replace(".", "-");
-    let sd_sid = sid.trim();
+    let mut sd_sid = sid.trim().to_string();
     
     if sd_sid == "" || sd_sid == "null" || sd_sid == "NULL" {        // Seems to happen, or has happened in the past, with one Dutch trial.
         error!("Well that's weird - no study id on line {}!", i);
         return None;
     }
 
-    let source_id = get_source_id(sd_sid);
+    let source_id = get_source_id(&sd_sid);
     if source_id == 100120 || source_id == 100126  // no need to process these - details input directly from registry (for CGT, ISRCTN).
     {
         return None;
@@ -33,6 +34,10 @@ pub fn process_line(w: WHOLine, i: i32) -> Option<i32>  {
         error!("Well that's weird - can't match the study id's {} source on line {}!", sd_sid, i);
         return None;
        
+    }
+
+    if source_id == 100123 {
+        sd_sid = sd_sid[0..19].to_string(); // lose country specific suffix
     }
 
     println!("{}, {}\n", sd_sid, source_id);
@@ -74,7 +79,6 @@ pub fn process_line(w: WHOLine, i: i32) -> Option<i32>  {
     let phase_statement = w.phase.tidy();
     let phase_orig = phase_statement.clone();
 
-
     let condition_list = w.conditions.replace_unicodes();
     let conditions: Option<Vec<String>>;
     if condition_list.is_some()
@@ -88,28 +92,43 @@ pub fn process_line(w: WHOLine, i: i32) -> Option<i32>  {
     }
    
 
-
-    let secondary_ids = Vec::<SecondaryId>::new();
+    let mut secondary_ids = Vec::<SecondaryId>::new();
     let sec_ids = w.sec_ids.tidy();
 
     if sec_ids.is_some()
     {
-        secondary_ids = split_and_add_ids(secondary_ids, sd_sid, sec_ids, "secondary ids");
+        let mut initial_ids = split_and_add_ids(&sd_sid, &sec_ids.unwrap(), "secondary ids");
+        secondary_ids.append(&mut initial_ids);
     }
         
     let bridging_flag = w.bridging_flag.tidy();
-    if bridging_flag.is_some() && bridging_flag.unwrap() != sd_sid
-    {
-        secondary_ids = split_and_add_ids(secondary_ids, r.sd_sid, r.bridging_flag, "bridging flag");
+    if bridging_flag.is_some() {
+        let mut br_flag = bridging_flag.unwrap();
+        if source_id == 100123 {
+            static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[0-9]{4}-[0-9]{6}-[0-9]{2}-").unwrap());
+            if RE.is_match(&br_flag) {
+                br_flag = br_flag[0..19].to_string() // lose country specific suffix
+            }
+        }
+        if br_flag != sd_sid
+        {
+            let mut bridge_ids = split_and_add_ids(&sd_sid, &br_flag, "bridging flag");
+            secondary_ids.append(&mut bridge_ids);
+        }
     }
 
-    let bridged_type = w.bridged_type.tidy();
     let childs = w.childs.tidy();
     if childs.is_some()
     {
-        secondary_ids = split_and_add_ids(secondary_ids, sd_sid, childs, "bridged child recs");
+        let mut child_ids = split_and_add_ids(&sd_sid, &childs.unwrap(), "bridged child recs");
+        secondary_ids.append(&mut child_ids);
     }
-  
+
+    let secids = match secondary_ids.len() {
+        0 => None,
+        _ => Some(secondary_ids)
+    };
+   
 
     let mut features = Vec::<WhoStudyFeature>::new();
 
@@ -262,7 +281,6 @@ pub fn process_line(w: WHOLine, i: i32) -> Option<i32>  {
     }
 
 
-
     let mut inc_crit = w.inclusion_criteria.tidy();
     if inc_crit.is_some() {
         let mut crit = inc_crit.unwrap();
@@ -274,7 +292,6 @@ pub fn process_line(w: WHOLine, i: i32) -> Option<i32>  {
         inc_crit = crit.replace_tags_and_unicodes();
     }
 
-
     let mut exc_crit = w.exclusion_criteria.tidy();
     if exc_crit.is_some() {
         let mut crit = exc_crit.unwrap();
@@ -285,8 +302,6 @@ pub fn process_line(w: WHOLine, i: i32) -> Option<i32>  {
         }
         exc_crit = crit.replace_tags_and_unicodes();
     }
-
-
 
    
     let mut ipd_plan = w.results_ipd_plan.replace_tags_and_unicodes();
@@ -366,7 +381,7 @@ pub fn process_line(w: WHOLine, i: i32) -> Option<i32>  {
         phase_string: phase_orig,
 
         country_list: countries,
-        secondary_ids: None,
+        secondary_ids: secids,
         study_features: study_features,
         condition_list: conditions,
     };
@@ -378,35 +393,9 @@ pub fn process_line(w: WHOLine, i: i32) -> Option<i32>  {
 }
 
 
-/* 
-         
-            List<Secondary_Id> secondary_ids = new List<Secondary_Id>();
-            string? sec_ids = sr.SecondaryIDs.Tidy();
-            if (!string.IsNullOrEmpty(sec_ids))
-            {
-                secondary_ids = _wh.SplitAndAddIds(secondary_ids, sd_sid, sec_ids, "secondary ids");
-            }
-            
-            
-            r.bridging_flag = sr.Bridging_flag.Tidy();
-            if (!string.IsNullOrEmpty(r.bridging_flag) && r.bridging_flag != r.sd_sid)
-            {
-                secondary_ids = _wh.SplitAndAddIds(secondary_ids, r.sd_sid, r.bridging_flag, "bridging flag");
-            }
-
-            r.bridged_type = sr.Bridged_type.Tidy();
-
-            r.childs = sr.Childs.Tidy();
-            if (!string.IsNullOrEmpty(r.childs))
-            {
-                secondary_ids = _wh.SplitAndAddIds(secondary_ids, r.sd_sid, r.childs, "bridged child recs");
-            }
-          
-            r.secondary_ids = secondary_ids;
 
 
-
-
+/*
             // Need to check if still required...
 
             if (source_id is 100132 && sd_sid.StartsWith("NTR"))
