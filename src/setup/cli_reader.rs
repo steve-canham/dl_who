@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 #[derive(Debug)]
 pub struct CliPars {
-    pub dl_type: usize,
+    pub dl_type: i32,
     pub target_file: String,
 }
 
@@ -16,7 +16,7 @@ pub fn fetch_valid_arguments(args: Vec<OsString>) -> Result<CliPars, AppError>
     // These parameters guaranteed to unwrap OK as all have a default value;
 
     let dl_type_as_string = parse_result.get_one::<String>("dl_type").unwrap();
-    let dl_type: usize = dl_type_as_string.parse().unwrap_or_else(|_| 0);
+    let dl_type: i32 = dl_type_as_string.parse().unwrap_or_else(|_| 0);
 
     let target_file = parse_result.get_one::<String>("file").unwrap();
 
@@ -38,7 +38,7 @@ pub fn config_file_exists()-> bool {
 }
 
 
-pub fn get_initalising_cli_pars()  -> CliPars {
+pub fn get_initalising_cli_pars() -> CliPars {
     
     CliPars {
         dl_type: 501,

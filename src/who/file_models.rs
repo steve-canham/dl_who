@@ -458,7 +458,7 @@ NULL,
 #[derive(Debug, serde::Serialize)]
 pub struct WHORecord
 {
-    pub source_id: usize, 
+    pub source_id: i32, 
     pub record_date: String,
     pub sd_sid: String, 
     pub pub_title: Option<String>,

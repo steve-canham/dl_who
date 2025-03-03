@@ -1,9 +1,9 @@
-use super::file_model::{SecondaryId, SecIdBase, WhoStudyFeature, MeddraCondition};
+use super::file_models::{SecondaryId, SecIdBase, WhoStudyFeature, MeddraCondition};
 use std::sync::LazyLock;
 use regex::Regex;
 use std::collections::HashSet;
 
-pub fn get_source_id(sd_sid: &String) -> usize {
+pub fn get_source_id(sd_sid: &String) -> i32 {
     let usid = sd_sid.to_uppercase();
     match usid {
         _ if usid.starts_with("NCT") => 100120,
@@ -31,7 +31,7 @@ pub fn get_source_id(sd_sid: &String) -> usize {
 }
 
 
-pub fn get_db_name (source_id: usize) -> String {
+pub fn get_db_name (source_id: i32) -> String {
     let db_name = match source_id {
         100116 => "anzctr",
         100117 => "rebec",
@@ -106,7 +106,7 @@ pub fn get_status(status: &String) -> Option<String> {
     }
 }
 
-pub fn get_conditions(condition_list: &String, source_id: usize) -> (Vec<String>, Vec<MeddraCondition>) {
+pub fn get_conditions(condition_list: &String, source_id: i32) -> (Vec<String>, Vec<MeddraCondition>) {
 
     // replace line breaks and hashes with semi-colons, then split
 

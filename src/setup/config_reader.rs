@@ -48,7 +48,7 @@ pub struct Config {
 
 pub struct DataPars {
     pub full_file_stem: String,
-    pub full_file_num: usize,
+    pub full_file_num: i32,
     pub last_file_imported: String,
     pub target_file: String,
 }
@@ -113,7 +113,7 @@ fn verify_data_parameters(toml_data_pars: TomlDataPars) -> Result<DataPars, AppE
     let full_file_stem = check_defaulted_string (toml_data_pars.full_file_stem, "full DL file stem", "ICTRPFullExport ", "ICTRPFullExport ");
 
     let full_file_num_as_string = check_defaulted_string (toml_data_pars.full_file_num, "full DL file num", "zero", "0");
-    let full_file_num: usize = full_file_num_as_string.parse().unwrap_or_else(|_| 0);
+    let full_file_num: i32 = full_file_num_as_string.parse().unwrap_or_else(|_| 0);
     
     let last_file_imported = check_defaulted_string (toml_data_pars.last_file_imported, "last file imported", "empty string", "");
 

@@ -53,12 +53,11 @@ pub enum AppError {
     #[error("Error when using regex: {0:?}")]
     RegexError(#[source] regex::Error, String),
 
+    #[error("Error during CSV read operation: {0:?}")]
+    CsvError(#[source] csv::Error, String),
+
     #[error("Error reading user input: {0:?}")]
     UserInputError (#[from] std::io::Error),
-
-    #[error("Error during CSV read operation: {0:?}")]
-    CsvError(#[from] csv::Error),
-    
 }
 
 
@@ -110,10 +109,11 @@ pub fn report_error(e: AppError) -> () {
                 format!("SQL was: {}", s),  "SQLX ERROR"),
 
         AppError::RegexError(e, d) => print_error(e.to_string(), d, "REGEX ISSUE"),
+        
+        AppError::CsvError(e, ln) => print_error (e.to_string(), format!("Error at file line {}", ln), "CSV ERROR"),
    
         AppError::UserInputError(e) => print_simple_error (e.to_string(), "USER INPUT ERROR"),
 
-        AppError::CsvError(e) => print_simple_error (e.to_string(), "CSV ERROR"),
     }
 }
 

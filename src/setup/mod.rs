@@ -22,15 +22,14 @@ use crate::err::AppError;
 use sqlx::postgres::{PgPoolOptions, PgConnectOptions, PgPool};
 use std::path::PathBuf;
 use std::time::Duration;
-//use regex::Regex;
 use sqlx::ConnectOptions;
 use config_reader::Config;
 use cli_reader::CliPars;
 
 pub struct InitParams {
-    pub dl_type: usize,
+    pub dl_type: i32,
     pub full_file_stem: String,
-    pub full_file_num: usize,
+    pub full_file_num: i32,
     pub last_file_imported: String,
     pub target: String,
     pub csv_data_path: PathBuf,

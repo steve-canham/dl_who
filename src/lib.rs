@@ -8,28 +8,30 @@ use err::AppError;
 use std::ffi::OsString;
 use std::fs;
 use std::path::PathBuf;
-use chrono::{DateTime, Utc};
 
 #[derive(Clone)]
 pub struct DownloadResult {
-    pub time_started: DateTime<Utc>,
-    pub time_ended: DateTime<Utc>,
-    pub num_records_checked: i32,
-    pub num_records_downloaded: i32,
-    pub num_records_added: i32,
+    pub num_checked: i32,
+    pub num_downloaded: i32,
+    pub num_added: i32,
 }
 
 impl DownloadResult {
     pub fn new() -> Self {
         DownloadResult {  
-        time_started: Utc::now(),
-        time_ended: Utc::now(),
-        num_records_checked: 0,
-        num_records_downloaded: 0,
-        num_records_added: 0,
+        num_checked: 0,
+        num_downloaded: 0,
+        num_added: 0,
         }
    }
 
+   pub fn add(&self, other: DownloadResult ) -> Self {
+    DownloadResult {  
+        num_checked: self.num_checked + other.num_checked,
+        num_downloaded: self.num_downloaded + other.num_downloaded,
+        num_added: self.num_added + other.num_added,
+    }
+}
 }
 
 pub async fn download(args: Vec<OsString>) -> Result<(), AppError> {
@@ -50,7 +52,7 @@ pub async fn download(args: Vec<OsString>) -> Result<(), AppError> {
     let json_path = params.json_data_path;
 
     let dl_id = data::get_next_download_id(&pool).await?;
-    let mut res = DownloadResult::new();
+    let mut dl_res = DownloadResult::new();
    
     match params.dl_type {
 
@@ -69,8 +71,8 @@ pub async fn download(args: Vec<OsString>) -> Result<(), AppError> {
             if files_to_process.len() > 0 {
                 for f in files_to_process {
                     let file_path: PathBuf = [&source_folder, &PathBuf:: from(f)].iter().collect();
-                    let _res = who::process_single_file(&file_path, &json_path, &mut res, dl_id, &pool).await?;
-
+                    let res = who::process_single_file(&file_path, &json_path, dl_id, &pool).await?;
+                    dl_res = dl_res.add(res);
                     // record the event in the dl events table:
                     // Record that file's download - source file, overall numbers, date etc. in the database
                 }
@@ -92,8 +94,8 @@ pub async fn download(args: Vec<OsString>) -> Result<(), AppError> {
             for i in 1..file_num {
                 let file_name = file_stem.clone() + &(format!("{:0>3}", i));
                 let file_path: PathBuf = [&source_folder, &PathBuf:: from(file_name)].iter().collect();
-                let _res = who::process_single_file(&file_path, &json_path, &mut res, dl_id, &pool).await?;
-
+                let res = who::process_single_file(&file_path, &json_path, dl_id, &pool).await?;
+                dl_res = dl_res.add(res);
                 // record the event in the dl events table:
                 // Record that file's download - source file, overall numbers, date etc. in the database
             }
@@ -110,10 +112,10 @@ pub async fn download(args: Vec<OsString>) -> Result<(), AppError> {
 
             let file_name = params.target;
             let file_path: PathBuf = [source_folder, PathBuf:: from(file_name)].iter().collect();
-            let _res = who::process_single_file(&file_path, &json_path, &mut res, dl_id, &pool).await?;
-
-            // record the event in the dl events table:
-            // Record that file's download - source file, overall numbers, date etc. in the database
+            dl_res = who::process_single_file(&file_path, &json_path, dl_id, &pool).await?;
+   
+            // Record that file's download summary - source file, overall numbers, date etc. in the database
+            // Record the result for each source in the DB
         },
 
         _ => {
@@ -122,8 +124,9 @@ pub async fn download(args: Vec<OsString>) -> Result<(), AppError> {
              
         }
     }
-
-
+    
+    // update dl event record with res details
+    data::update_dl_event_record (dl_id, params.dl_type, dl_res, &pool).await?;
 
     Ok(())  
 }

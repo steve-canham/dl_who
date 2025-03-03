@@ -5,45 +5,42 @@
 use regex::Regex;
 use std::sync::LazyLock;
 use log::error;
-use crate::who::file_model::MeddraCondition;
+use crate::who::file_models::MeddraCondition;
 
 use super::who_helper::{get_db_name, get_source_id, get_status, 
     get_conditions, split_and_dedup_countries, 
     add_int_study_features, add_obs_study_features, add_eu_design_features,
     add_masking_features, add_phase_features, add_eu_phase_features, split_and_add_ids};
 use super::gen_helper::{StringExtensions, DateExtensions};
-use super::file_model::{WHOLine, WHORecord, WhoStudyFeature, SecondaryId};
+use super::file_models::{WHOLine, WHORecord, WhoStudyFeature, SecondaryId};
 
 
-pub fn process_line(w: WHOLine, i: i32) -> Option<WHORecord>  {
+pub fn process_line(w: WHOLine, i: i32) -> (i32, Option<WHORecord>)  {
 
     let sid = w.trial_id.replace("/", "-").replace("\\", "-").replace(".", "-");
     let mut sd_sid = sid.trim().to_string();
     
     if sd_sid == "" || sd_sid == "null" || sd_sid == "NULL" {        // Seems to happen, or has happened in the past, with one Dutch trial.
         error!("Well that's weird - no study id on line {}!", i);
-        return None;
+        return (0, None);
     }
 
     let source_id = get_source_id(&sd_sid);
     if source_id == 100120 || source_id == 100126  // no need to process these - details input directly from registry (for CGT, ISRCTN).
     {
-        return None;
+        return (source_id, None);
     }
             
     if source_id == 0
     {
         error!("Well that's weird - can't match the study id's {} source on line {}!", sd_sid, i);
-        return None;
+        return (0, None);
        
     }
 
     if source_id == 100123 {
         sd_sid = sd_sid[0..19].to_string(); // lose country specific suffix
     }
-
-    println!("{}, {}\n", sd_sid, source_id);
-
     
     let mut study_type = w.study_type.tidy();
     if study_type.is_some()
@@ -353,7 +350,7 @@ pub fn process_line(w: WHOLine, i: i32) -> Option<WHORecord>  {
     }
    
     
-    Some(WHORecord  {
+    (source_id, Some(WHORecord  {
         source_id: source_id, 
         record_date: w.last_updated.as_iso_date().unwrap(),    // assumed to be always present
         sd_sid: sd_sid.to_string(), 
@@ -411,7 +408,7 @@ pub fn process_line(w: WHOLine, i: i32) -> Option<WHORecord>  {
         study_features: study_features,
         condition_list: conditions_option,
         meddra_condition_list: meddraconds_option,
-    })
+    }))
 
 
 }

@@ -21,12 +21,12 @@ use log4rs::{
 };
 
 
-pub fn setup_log (data_folder: &PathBuf, dl_type: usize) -> Result<log4rs::Handle, AppError> {
+pub fn setup_log (data_folder: &PathBuf, dl_type: i32) -> Result<log4rs::Handle, AppError> {
     let log_file_path = get_log_file_path(data_folder, dl_type);
     config_log (&log_file_path)
 }
 
-fn get_log_file_path(data_folder: &PathBuf, dl_type: usize) -> PathBuf {
+fn get_log_file_path(data_folder: &PathBuf, dl_type: i32) -> PathBuf {
     
     let datetime_string = Local::now().format("%m-%d %H%M%S").to_string();
     let log_file_name = format!("WHO DL ({}) {} ", dl_type, datetime_string);
