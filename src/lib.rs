@@ -32,7 +32,7 @@ impl DownloadResult {
 
 }
 
-pub async fn run(args: Vec<OsString>) -> Result<(), AppError> {
+pub async fn download(args: Vec<OsString>) -> Result<(), AppError> {
     
     // If no config file the command line arguments are forced into
     // the equivalent of a user's initialisation request. Otherwise
@@ -46,9 +46,10 @@ pub async fn run(args: Vec<OsString>) -> Result<(), AppError> {
     let params = setup::get_params(cli_pars, &config_string)?;
 
     setup::establish_log(&params)?;
-    let _pool = setup::get_db_pool().await?;
+    let pool = setup::get_db_pool().await?;  // pool for the monitoring db
     let json_path = params.json_data_path;
 
+    let dl_id = data::get_next_download_id(&pool).await?;
     let mut res = DownloadResult::new();
    
     match params.dl_type {
@@ -63,12 +64,12 @@ pub async fn run(args: Vec<OsString>) -> Result<(), AppError> {
             // first need a routine that can identify the files and return them 
             // as a vector of file names, in the correct order, if any...
 
-            let files_to_process = vec!["a", "b", "c"];
+            let files_to_process = vec!["a", "b", "c"];  // for now!!
 
             if files_to_process.len() > 0 {
                 for f in files_to_process {
                     let file_path: PathBuf = [&source_folder, &PathBuf:: from(f)].iter().collect();
-                    let _res = who::process_single_file(&file_path, &json_path, &mut res)?;
+                    let _res = who::process_single_file(&file_path, &json_path, &mut res, dl_id, &pool).await?;
 
                     // record the event in the dl events table:
                     // Record that file's download - source file, overall numbers, date etc. in the database
@@ -91,7 +92,7 @@ pub async fn run(args: Vec<OsString>) -> Result<(), AppError> {
             for i in 1..file_num {
                 let file_name = file_stem.clone() + &(format!("{:0>3}", i));
                 let file_path: PathBuf = [&source_folder, &PathBuf:: from(file_name)].iter().collect();
-                let _res = who::process_single_file(&file_path, &json_path, &mut res)?;
+                let _res = who::process_single_file(&file_path, &json_path, &mut res, dl_id, &pool).await?;
 
                 // record the event in the dl events table:
                 // Record that file's download - source file, overall numbers, date etc. in the database
@@ -109,7 +110,7 @@ pub async fn run(args: Vec<OsString>) -> Result<(), AppError> {
 
             let file_name = params.target;
             let file_path: PathBuf = [source_folder, PathBuf:: from(file_name)].iter().collect();
-            let _res = who::process_single_file(&file_path, &json_path, &mut res)?;
+            let _res = who::process_single_file(&file_path, &json_path, &mut res, dl_id, &pool).await?;
 
             // record the event in the dl events table:
             // Record that file's download - source file, overall numbers, date etc. in the database

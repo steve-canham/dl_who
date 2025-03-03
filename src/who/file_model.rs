@@ -455,12 +455,11 @@ NULL,
 */
 
 
-#[allow(dead_code)]
-#[derive(Debug)]
+#[derive(Debug, serde::Serialize)]
 pub struct WHORecord
 {
     pub source_id: usize, 
-    pub record_date: Option<String>,
+    pub record_date: String,
     pub sd_sid: String, 
     pub pub_title: Option<String>,
     pub scientific_title: Option<String>,
@@ -515,9 +514,10 @@ pub struct WHORecord
     pub secondary_ids: Option<Vec<SecondaryId>>,
     pub study_features: Option<Vec<WhoStudyFeature>>,
     pub condition_list: Option<Vec<String>>,
+    pub meddra_condition_list: Option<Vec<MeddraCondition>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, serde::Serialize)]
 #[allow(dead_code)]
 pub struct SecondaryId
 {
@@ -546,7 +546,7 @@ impl SecondaryId {
     }
   
     pub fn new_from_base(source_field: String, sec_id: String,
-        sid: SecIdBase)
+                sid: SecIdBase)
          -> Self {SecondaryId {  
             source_field,
             sec_id,
@@ -581,20 +581,10 @@ impl SecIdBase {
             sec_id_type,
          }
     }
-/*
-    pub fn short_new(processed_id: String, sec_id_source: usize) -> Self {
-        SecIdBase {  
-            processed_id,
-            sec_id_source,
-            sec_id_type_id: None,
-            sec_id_type: None,
-        }
-    }
-*/
 } 
 
 
-#[derive(Debug)]
+#[derive(Debug, serde::Serialize)]
 #[allow(dead_code)]
 pub struct WhoStudyFeature
 {
@@ -617,3 +607,34 @@ impl WhoStudyFeature {
         }
     }
 }
+
+
+#[derive(Debug, serde::Serialize)]
+#[allow(dead_code)]
+pub struct MeddraCondition
+{
+    pub version: String,
+    pub level: String,
+    pub code: String,
+    pub term: String,
+    pub soc_code: String,
+    pub soc_term: String,
+}
+
+#[allow(dead_code)]
+impl MeddraCondition {
+
+    pub fn new(version: String, level: String,
+        code: String, term: String, soc_code: String, 
+        soc_term: String) -> Self {
+            MeddraCondition {
+            version,
+            level,
+            code,
+            term,
+            soc_code,
+            soc_term,
+        }
+    }
+}
+

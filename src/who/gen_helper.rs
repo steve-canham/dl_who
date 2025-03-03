@@ -96,11 +96,13 @@ impl StringExtensions for String {
             else {
                 let mut output = trimmed.to_owned();
                 
+                output = output.replace("<p>", "\n");
                 output = output.replace("<br>", "\n");
                 output = output.replace("<br/>", "\n");
                 output = output.replace("<br />", "\n");
                 output = output.replace("\n\n", "\n").replace("\n \n", "\n");
                 output = output.replace(",,", ",");
+                output = output.replace("</p>", "");
 
                 output = output.replace("&#32;", " ").replace("&#37;", "%");
                 output = output.replace("#gt;", ">").replace("#lt;", "<");       

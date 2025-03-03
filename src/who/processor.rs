@@ -5,15 +5,17 @@
 use regex::Regex;
 use std::sync::LazyLock;
 use log::error;
+use crate::who::file_model::MeddraCondition;
+
 use super::who_helper::{get_db_name, get_source_id, get_status, 
     get_conditions, split_and_dedup_countries, 
-    add_int_study_features, add_obs_study_features, 
-    add_masking_features, add_phase_features, split_and_add_ids};
+    add_int_study_features, add_obs_study_features, add_eu_design_features,
+    add_masking_features, add_phase_features, add_eu_phase_features, split_and_add_ids};
 use super::gen_helper::{StringExtensions, DateExtensions};
 use super::file_model::{WHOLine, WHORecord, WhoStudyFeature, SecondaryId};
 
 
-pub fn process_line(w: WHOLine, i: i32) -> Option<i32>  {
+pub fn process_line(w: WHOLine, i: i32) -> Option<WHORecord>  {
 
     let sid = w.trial_id.replace("/", "-").replace("\\", "-").replace(".", "-");
     let mut sd_sid = sid.trim().to_string();
@@ -80,15 +82,27 @@ pub fn process_line(w: WHOLine, i: i32) -> Option<i32>  {
     let phase_orig = phase_statement.clone();
 
     let condition_list = w.conditions.replace_unicodes();
-    let conditions: Option<Vec<String>>;
+    let conditions_option: Option<Vec<String>>;
+    let meddraconds_option: Option<Vec<MeddraCondition>>;
     if condition_list.is_some()
     {
         // Need a specific routine to deal with EUCTR and the MedDRA listings
+        let conditions: Vec<String>;
+        let meddraconds: Vec<MeddraCondition>;
 
-        conditions = get_conditions(&condition_list.unwrap());
+        (conditions, meddraconds) = get_conditions(&condition_list.unwrap(), source_id);
+        conditions_option = match conditions.len() {
+            0 => None,
+            _ => Some(conditions)
+        };
+        meddraconds_option = match meddraconds.len() {
+            0 => None,
+            _ => Some(meddraconds)
+        };
     }
     else {
-        conditions = None;
+        conditions_option = None;
+        meddraconds_option = None;
     }
    
 
@@ -97,7 +111,7 @@ pub fn process_line(w: WHOLine, i: i32) -> Option<i32>  {
 
     if sec_ids.is_some()
     {
-        let mut initial_ids = split_and_add_ids(&sd_sid, &sec_ids.unwrap(), "secondary ids");
+        let mut initial_ids = split_and_add_ids(&secondary_ids, &sd_sid, &sec_ids.unwrap(), "secondary ids");
         secondary_ids.append(&mut initial_ids);
     }
         
@@ -112,7 +126,7 @@ pub fn process_line(w: WHOLine, i: i32) -> Option<i32>  {
         }
         if br_flag != sd_sid
         {
-            let mut bridge_ids = split_and_add_ids(&sd_sid, &br_flag, "bridging flag");
+            let mut bridge_ids = split_and_add_ids(&secondary_ids, &sd_sid, &br_flag, "bridging flag");
             secondary_ids.append(&mut bridge_ids);
         }
     }
@@ -120,7 +134,7 @@ pub fn process_line(w: WHOLine, i: i32) -> Option<i32>  {
     let childs = w.childs.tidy();
     if childs.is_some()
     {
-        let mut child_ids = split_and_add_ids(&sd_sid, &childs.unwrap(), "bridged child recs");
+        let mut child_ids = split_and_add_ids(&secondary_ids, &sd_sid, &childs.unwrap(), "bridged child recs");
         secondary_ids.append(&mut child_ids);
     }
 
@@ -133,7 +147,7 @@ pub fn process_line(w: WHOLine, i: i32) -> Option<i32>  {
     let mut features = Vec::<WhoStudyFeature>::new();
 
     if design_list.is_some()  {
-        let des_list = &design_list.unwrap();
+        let des_list = &design_list.unwrap().to_lowercase();
 
         // Needs separate routines for eu-ctr
 
@@ -143,21 +157,35 @@ pub fn process_line(w: WHOLine, i: i32) -> Option<i32>  {
             features.append(&mut fs);
         }
         else
-        {               
-            let mut fs = add_int_study_features(des_list);
-            features.append(&mut fs);
-            let mut fs = add_masking_features(des_list);
-            features.append(&mut fs);
+        {      
+            if source_id == 100123 {
+                let mut fs = add_eu_design_features(des_list);
+                features.append(&mut fs);
+            }
+            else {         
+                let mut fs = add_int_study_features(des_list);
+                features.append(&mut fs);
+                let mut fs = add_masking_features(des_list);
+                features.append(&mut fs);
+            }
         }
     }
 
 
     if phase_statement.is_some() {
 
-        // Needs separate routine for eu-ctr
+        // Needs separate routine for eu-ctr.
 
-        let mut fs = add_phase_features(&phase_statement.unwrap());
-        features.append(&mut fs);
+        let phase_statement = &phase_statement.unwrap().to_lowercase();
+        if source_id == 100123 {
+            let mut fs = add_eu_phase_features(phase_statement);
+            features.append(&mut fs);
+        }
+        else {
+            let mut fs = add_phase_features(phase_statement);
+            features.append(&mut fs);
+        }
+        
     }
 
     let study_features = match features.len() {
@@ -325,11 +353,9 @@ pub fn process_line(w: WHOLine, i: i32) -> Option<i32>  {
     }
    
     
-    let rec = 
-        WHORecord 
-        {
+    Some(WHORecord  {
         source_id: source_id, 
-        record_date: w.last_updated.as_iso_date(),
+        record_date: w.last_updated.as_iso_date().unwrap(),    // assumed to be always present
         sd_sid: sd_sid.to_string(), 
         pub_title: w.pub_title.replace_unicodes(),
         scientific_title: w.scientific_title.replace_unicodes(),
@@ -350,7 +376,7 @@ pub fn process_line(w: WHOLine, i: i32) -> Option<i32>  {
         primary_sponsor: w.primary_sponsor.tidy(),
         secondary_sponsors: w.secondary_sponsors.tidy(),
         source_support: w.source_support.tidy(),
-        interventions: w.interventions.tidy(),
+        interventions: w.interventions.replace_tags_and_unicodes(),
         agemin: agemin,
         agemin_units:agemin_units,
         agemax: agemax,
@@ -383,12 +409,10 @@ pub fn process_line(w: WHOLine, i: i32) -> Option<i32>  {
         country_list: countries,
         secondary_ids: secids,
         study_features: study_features,
-        condition_list: conditions,
-    };
+        condition_list: conditions_option,
+        meddra_condition_list: meddraconds_option,
+    })
 
-    print!("{:#?}\n", rec );
-
-    Some(42)
 
 }
 

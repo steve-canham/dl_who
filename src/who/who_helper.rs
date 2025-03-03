@@ -1,6 +1,7 @@
-use super::file_model::{SecondaryId, SecIdBase, WhoStudyFeature};
+use super::file_model::{SecondaryId, SecIdBase, WhoStudyFeature, MeddraCondition};
 use std::sync::LazyLock;
 use regex::Regex;
+use std::collections::HashSet;
 
 pub fn get_source_id(sd_sid: &String) -> usize {
     let usid = sd_sid.to_uppercase();
@@ -105,15 +106,15 @@ pub fn get_status(status: &String) -> Option<String> {
     }
 }
 
-pub fn get_conditions(condition_list: &String) -> Option<Vec<String>> {
+pub fn get_conditions(condition_list: &String, source_id: usize) -> (Vec<String>, Vec<MeddraCondition>) {
 
-    // replace line breaks and hashes with semi-colons, and split
+    // replace line breaks and hashes with semi-colons, then split
 
     let mut clist = condition_list.replace("<br>", ";").replace("<br/>", ";");
     clist = clist.replace("#", ";");
-
     let sep_conds: Vec<&str> = clist.split(";").collect();
     let mut conds = Vec::<String>::new();
+    let mut medra_conds = Vec::<MeddraCondition>::new();
 
     for s in sep_conds
     {
@@ -121,20 +122,79 @@ pub fn get_conditions(condition_list: &String) -> Option<Vec<String>> {
         let s1 = s.trim_matches(complex_trim);
         if s1 != "" && s1.len() >= 3
         {
-            conds.push(s1.to_string());
+            if source_id == 100123  && s1.to_lowercase().starts_with("meddra") {
+                
+                // Of type (but without line breaks): 
+                // MedDRA version: 20.0  // Level: PT  // Classification code 10005003  // Term: Bladder cancer
+                // System Organ Class: 10029104 - Neoplasms benign, malignant and unspecified (incl cysts and polyps)",
+                // MedDRA version: 21.1  //Level: LLT  //Classification code 10022877  //Term: Invasive bladder cancer
+                // System Organ Class: 10029104 - Neoplasms benign, malignant and unspecified (incl cysts and polyps)",
 
-            // Processing code for condition data now all moved to Harvester
+                let re = Regex::new(r"MedDRA version: (?<v>.+)Level").unwrap();
+                let caps = re.captures(&s1).unwrap();
+                let version = caps["v"].to_string();
+
+                let re = Regex::new(r"Level: (?<level>.+)Classific").unwrap();
+                let caps = re.captures(&s1).unwrap();
+                let level = caps["level"].to_string();
+
+                let re = Regex::new(r"Classification code (?<code>[0-9]+)").unwrap();
+                let caps = re.captures(&s1).unwrap();
+                let code = caps["code"].to_string();
+
+                let re = Regex::new(r"Term: (?<term>.+)System").unwrap();
+                let caps = re.captures(&s1);
+                let term: String;
+                if caps.is_some() {
+                    term = caps.unwrap()["term"].to_string();
+                }
+                else {
+                    term = "".to_string();
+                }
+
+                let re = Regex::new(r"System Organ Class: (?<soccode>[0-9]+)").unwrap();
+                let caps = re.captures(&s1);
+                let soc_code: String;
+                if caps.is_some() {
+                    soc_code = caps.unwrap()["soccode"].to_string();
+                }
+                else {
+                    soc_code = "".to_string();
+                }
+                
+
+                let re = Regex::new(r"System Organ Class: (.+) - (?<socterm>.+)$").unwrap();
+                let caps = re.captures(&s1);
+                let soc_term: String;
+                if caps.is_some() {
+                    soc_term = caps.unwrap()["socterm"].to_string();
+                }
+                else {
+                    soc_term = "".to_string();
+                }
+
+                let mc = MeddraCondition::new(version, level, code, term, soc_code, soc_term);
+                medra_conds.push(mc);
+            }
+            else {
+                conds.push(s1.to_string());
+            }
+
+            // Most processing code for condition data now all moved to Harvester
             // module, as it is easier to correct and extend there (changes
             // do not require global WHO re-download!).
             // Conditions exported from here a a simple string array.
-            
         }
     }
-    
-    match conds.len() {
-        0 => None,
-        _ => Some(conds),
-    }
+
+    // In some cases conditions are duplicated in the WHO list
+    // Duplication canm also occur of SOCs if mulitple MedDRA entries provided
+    // Therefore need to de-duplicate
+
+    let mut uniques = HashSet::new();
+    conds.retain(|e| uniques.insert(e.clone()));
+
+    (conds, medra_conds)    
 
 }
 
@@ -173,12 +233,47 @@ pub fn split_and_dedup_countries(country_list: &String) -> Option<Vec<String>> {
     return Some(out_strings);
 }
 
+pub fn add_eu_design_features(design: &String) -> Vec<WhoStudyFeature> {
+    let mut fs = Vec::<WhoStudyFeature>::new();
+    
+    // design list in forms such as (without line breaks)
+    // "Controlled: yes Randomised: yes Open: no Single blind: no Double blind: yes Parallel group: no 
+    //Cross over: no Other: no 
+    //If controlled, specify comparator, Other Medicinial Product: no Placebo: yes 
+    // Other: no Number of treatment arms in the trial: 3",
+    
+    //Controlled: yes Randomised: yes Open: no Single blind: no Double blind: yes 
+    //Parallel group: yes Cross over: no Other: yes 
+    //Other trial design description: 2 part of the study - first double-blind, second part open label 
+    //If controlled, specify comparator, 
+    //Other Medicinial Product: no Placebo: yes Other: no Number of treatment arms in the trial: 2"
+    
+    if design.contains("randomised: yes") {
+        fs.push(WhoStudyFeature::new(22, "Allocation type", 205, "Randomised"));
+    }
+    if design.contains("open: yes") {
+        fs.push(WhoStudyFeature::new(24, "Masking", 500, "None (Open Label)"));
+    }
+    if design.contains("single blind: yes") {
+        fs.push(WhoStudyFeature::new(24, "Masking", 505, "Single"));
+    }
+    if design.contains("double blind: yes") {
+        fs.push(WhoStudyFeature::new(24, "Masking", 510, "Double"));
+    }
+    if design.contains("parallel group: yes") {
+        fs.push(WhoStudyFeature::new(23, "Intervention model", 305, "Parallel assignment"));
+    }
+    if design.contains("cross over: yes") {
+        fs.push(WhoStudyFeature::new(23, "Intervention model", 310, "Crossover assignment"));
+    }
 
+    fs
+}
 
 pub fn add_int_study_features(design_list: &String) -> Vec<WhoStudyFeature>
 {
     let mut fs = Vec::<WhoStudyFeature>::new();
-    let design = design_list.replace(" :", ":").to_lowercase(); // to make comparisons easier
+    let design = design_list.replace(" :", ":"); // to make comparisons easier
 
     if design.contains("purpose: treatment")
     {
@@ -227,11 +322,10 @@ pub fn add_int_study_features(design_list: &String) -> Vec<WhoStudyFeature>
 }
 
 
-pub fn add_obs_study_features(design_list: &String) -> Vec<WhoStudyFeature>
+pub fn add_obs_study_features(design: &String) -> Vec<WhoStudyFeature>
 {
     let mut fs = Vec::<WhoStudyFeature>::new();
-    let design = design_list.replace(" :", ":").to_lowercase(); // to make comparisons easier
-
+    
     if design.contains("observational study model")
     {
         if design.contains("cohort")
@@ -288,7 +382,7 @@ pub fn add_obs_study_features(design_list: &String) -> Vec<WhoStudyFeature>
 pub fn add_masking_features(design_list: &String) -> Vec<WhoStudyFeature>
 {
     let mut fs = Vec::<WhoStudyFeature>::new();
-    let design = design_list.replace(" :", ":").to_lowercase(); // to make comparisons easier
+    let design = design_list.replace(" :", ":"); // to make comparisons easier
 
     if design.contains("open label")
        || design.contains("open-label")
@@ -362,12 +456,55 @@ pub fn add_masking_features(design_list: &String) -> Vec<WhoStudyFeature>
     fs
 }
 
-
-pub fn add_phase_features(phase_list: &String) -> Vec<WhoStudyFeature>
+pub fn add_eu_phase_features(phase_list: &String) -> Vec<WhoStudyFeature>
 {
     let mut fs = Vec::<WhoStudyFeature>::new();
-    let phase = phase_list.to_lowercase();
+    
+    // phase string in the form
+    //"Human pharmacology (Phase I): noTherapeutic exploratory (Phase II): yesTherapeutic confirmatory - (Phase III): noTherapeutic use (Phase IV): no"
+    // split on the colon
 
+    let mut p1 = false;
+    let mut p2 = false;
+    let mut p3 = false;
+    let ps: Vec<&str> = phase_list.split(':').into_iter().collect();
+    if ps[1].trim().starts_with("yes") {
+        p1 = true;
+    }
+    if ps[2].trim().starts_with("yes") {
+        p2 = true;
+    }
+    if ps[3].trim().starts_with("yes") {
+        p3 = true;
+    }
+    
+    if p1 && p2 {
+        fs.push(WhoStudyFeature::new(20, "Phase", 115, "Phase 1/Phase 2"));
+    }
+    else if p2 && p3 {
+        fs.push(WhoStudyFeature::new(20, "Phase", 125, "Phase 2/Phase 3"));
+    }
+    else if p1 {
+        fs.push(WhoStudyFeature::new(20, "phase", 110, "Phase 1"));
+    }
+    else if p2 {
+        fs.push(WhoStudyFeature::new(20, "Phase", 120, "Phase 2"));
+    }
+    else if p3 {
+        fs.push(WhoStudyFeature::new(20, "phase", 130, "Phase 3"));
+    }
+
+    if ps[4].trim().starts_with("yes") {
+        fs.push(WhoStudyFeature::new(20, "phase", 135, "Phase 4"));
+    }
+
+    fs
+}
+
+pub fn add_phase_features(phase: &String) -> Vec<WhoStudyFeature>
+{
+    let mut fs = Vec::<WhoStudyFeature>::new();
+    
     if phase != "not selected" && phase != "not applicable"
         && phase != "na" && phase != "n/a"
     {
@@ -416,7 +553,7 @@ pub fn add_phase_features(phase_list: &String) -> Vec<WhoStudyFeature>
         }
         else
         {
-            fs.push(WhoStudyFeature::new(20, "Phase", 1500, phase_list));
+            fs.push(WhoStudyFeature::new(20, "Phase", 1500, phase));
         }
     }
 
@@ -424,7 +561,7 @@ pub fn add_phase_features(phase_list: &String) -> Vec<WhoStudyFeature>
 }
 
 
-    pub fn  split_and_add_ids(sd_sid: &String, in_string: &String, source_field: &str) -> Vec<SecondaryId>
+    pub fn  split_and_add_ids(existing_ids: &Vec::<SecondaryId>, sd_sid: &String, in_string: &String, source_field: &str) -> Vec<SecondaryId>
     {
         // in_string already known to be non-null, non-empty.
 
@@ -448,31 +585,33 @@ pub fn add_phase_features(phase_list: &String) -> Vec<WhoStudyFeature>
                     && !secid_low.starts_with("??")
                 {
                     let sec_id_base = get_sec_id_details(secid, sd_sid);
-
-                    /*  
-                    // for now, mmove the duplicate checking back to the calling routine
-                    // once all the ids have been collected
+                   
+                    // Is the id the same as the sid? (With EUCTR may be, 
+                    // because it is simply anoher country code variation)
                     // Has this id been added before?
                   
                     let mut add_id = true;
-                   
-                    if existing_ids.len() > 0
+
+                    if sec_id_base.processed_id == sd_sid.to_string() {
+                        add_id = false;
+                    }
+                    else if existing_ids.len() > 0
                     {
-                        for secid in existing_ids
+                        for s in existing_ids
                         {
-                            if (sec_id_base.processed_id == secid.processed_id)
+                            if sec_id_base.processed_id == s.processed_id
                             {
                                 add_id = false;
                                 break;
                             }
                         }
                     }
-                    if (add_id)
-                    {*/
 
-                    id_list.push(SecondaryId::new_from_base(source_field.to_string(), 
+                    if add_id
+                    {
+                        id_list.push(SecondaryId::new_from_base(source_field.to_string(), 
                                                     secid.to_string(), sec_id_base));
-
+                    }
                 }
             }
         }

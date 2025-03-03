@@ -1,5 +1,28 @@
 
-/*
+
+/* 
+#[allow(dead_code)]
+#[derive(sqlx::FromRow)]
+pub struct StudyFileRecord
+{
+    pub id: i64,
+    pub sd_sid: String,
+    pub remote_url: Option<String>,
+    pub last_revised: Option<>,
+    pub local_path: Option<String>,
+    pub last_dl_id: Option<i64>,
+    pub last_downloaded: Option<NaiveDateTime>,
+    pub last_harvest_id: Option<i64>,
+    pub last_harvested: Option<NaiveDateTime>,
+    pub last_import_id: Option<i64>,
+    pub last_imported: Option<NaiveDateTime>,
+    pub last_coding_id: Option<i64>,
+    pub last_coded: Option<NaiveDateTime>,
+    pub last_aggregation_id: Option<i64>,
+    pub last_aggregated: Option<NaiveDateTime>,
+
+}
+
 using Dapper.Contrib.Extensions;
 
 namespace MDR_Downloader;
