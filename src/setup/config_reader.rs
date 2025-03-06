@@ -36,7 +36,8 @@ pub struct TomlDBPars {
     pub db_user: Option<String>,
     pub db_password: Option<String>,
     pub db_port: Option<String>,
-    pub db_name: Option<String>,
+    pub mon_db_name: Option<String>,
+    pub src_db_name: Option<String>,
 }
 
 
@@ -66,7 +67,8 @@ pub struct DBPars {
     pub db_user: String,
     pub db_password: String,
     pub db_port: usize,
-    pub db_name: String,
+    pub mon_db_name: String,
+    pub src_db_name: String,
 }
 
 pub static DB_PARS: OnceLock<DBPars> = OnceLock::new();
@@ -159,14 +161,16 @@ fn verify_db_parameters(toml_database: TomlDBPars) -> Result<DBPars, AppError> {
     let db_port_as_string = check_defaulted_string (toml_database.db_port, "DB port", "5432", "5432");
     let db_port: usize = db_port_as_string.parse().unwrap_or_else(|_| 5432);
 
-    let db_name = check_defaulted_string (toml_database.db_name, "DB name", "mon", "mon");
+    let mon_db_name = check_defaulted_string (toml_database.mon_db_name, "Mon DB name", "mon", "mon");
+    let src_db_name = check_defaulted_string (toml_database.src_db_name, "Src DB name", "who", "who");
 
     Ok(DBPars {
         db_host,
         db_user,
         db_password,
         db_port,
-        db_name,
+        mon_db_name,
+        src_db_name
     })
 }
 
@@ -208,14 +212,24 @@ fn check_defaulted_string (src_name: Option<String>, value_name: &str, default_n
 }
 
 
-pub fn fetch_db_name() -> Result<String, AppError> {
+pub fn fetch_mon_db_name() -> Result<String, AppError> {
     let db_pars = match DB_PARS.get() {
          Some(dbp) => dbp,
          None => {
             return Result::Err(AppError::MissingDBParameters());
         },
     };
-    Ok(db_pars.db_name.clone())
+    Ok(db_pars.mon_db_name.clone())
+}
+
+pub fn fetch_src_db_name() -> Result<String, AppError> {
+    let db_pars = match DB_PARS.get() {
+         Some(dbp) => dbp,
+         None => {
+            return Result::Err(AppError::MissingDBParameters());
+        },
+    };
+    Ok(db_pars.src_db_name.clone())
 }
 
 pub fn fetch_db_conn_string(db_name: &String) -> Result<String, AppError> {
@@ -259,7 +273,9 @@ db_host="localhost"
 db_user="user_name"
 db_password="password"
 db_port="5433"
-db_name="mon"
+mon_db_name="mon"
+src_db_name="who"
+
 "#;
         let config_string = config.to_string();
         let res = populate_config_vars(&config_string).unwrap();
@@ -278,7 +294,8 @@ db_name="mon"
         assert_eq!(res.db_pars.db_user, "user_name");
         assert_eq!(res.db_pars.db_password, "password");
         assert_eq!(res.db_pars.db_port, 5433);
-        assert_eq!(res.db_pars.db_name, "mon");
+        assert_eq!(res.db_pars.mon_db_name, "mon");
+        assert_eq!(res.db_pars.src_db_name, "who");
     }
     
 
@@ -304,7 +321,9 @@ db_host="localhost"
 db_user="user_name"
 db_password="password"
 db_port="5433"
-db_name="mon"
+mon_db_name="mon"
+src_db_name="who"
+
 "#;
         let config_string = config.to_string();
         let res = populate_config_vars(&config_string).unwrap();
@@ -323,7 +342,8 @@ db_name="mon"
         assert_eq!(res.db_pars.db_user, "user_name");
         assert_eq!(res.db_pars.db_password, "password");
         assert_eq!(res.db_pars.db_port, 5433);
-        assert_eq!(res.db_pars.db_name, "mon");
+        assert_eq!(res.db_pars.mon_db_name, "mon");
+        assert_eq!(res.db_pars.src_db_name, "who");
     }
 
 
@@ -348,7 +368,9 @@ db_host="localhost"
 db_user="user_name"
 db_password="password"
 db_port="5433"
-db_name="mon"
+mon_db_name="mon"
+src_db_name="who"
+
 "#;
         let config_string = config.to_string();
         let res = populate_config_vars(&config_string).unwrap();
@@ -382,7 +404,9 @@ db_host="localhost"
 db_user="user_name"
 db_password="password"
 db_port="5433"
-db_name="mon"
+mon_db_name="mon"
+src_db_name="who"
+
 "#;
         let config_string = config.to_string();
         let res = populate_config_vars(&config_string).unwrap();
@@ -417,7 +441,9 @@ db_host="localhost"
 db_user="user_name"
 db_password="password"
 db_port="5433"
-db_name="mon"
+mon_db_name="mon"
+src_db_name="who"
+
 "#;
         let config_string = config.to_string();
         let _res = populate_config_vars(&config_string).unwrap();
@@ -447,7 +473,9 @@ db_host="localhost"
 db_user="user_name"
 db_password="password"
 db_port="5433"
-db_name="mon"
+mon_db_name="mon"
+src_db_name="who"
+
 "#;
         let config_string = config.to_string();
         let _res = populate_config_vars(&config_string).unwrap();
@@ -471,7 +499,9 @@ db_host="localhost"
 db_user="user_name"
 db_password="password"
 db_port="5433"
-db_name="mon"
+mon_db_name="mon"
+src_db_name="who"
+
 "#;
         let config_string = config.to_string();
         let res = populate_config_vars(&config_string).unwrap();
@@ -490,7 +520,8 @@ db_name="mon"
         assert_eq!(res.db_pars.db_user, "user_name");
         assert_eq!(res.db_pars.db_password, "password");
         assert_eq!(res.db_pars.db_port, 5433);
-        assert_eq!(res.db_pars.db_name, "mon");
+        assert_eq!(res.db_pars.mon_db_name, "mon");
+        assert_eq!(res.db_pars.src_db_name, "who");
     }
 
 
@@ -517,7 +548,8 @@ log_folder_path="E:/MDR/MDR Logs"
 db_host="localhost"
 db_password="password"
 db_port="5433"
-db_name="mon"
+mon_db_name="mon"
+src_db_name="who"
 "#;
         let config_string = config.to_string();
         let _res = populate_config_vars(&config_string).unwrap();
@@ -553,7 +585,8 @@ db_password="password"
         assert_eq!(res.db_pars.db_user, "user_name");
         assert_eq!(res.db_pars.db_password, "password");
         assert_eq!(res.db_pars.db_port, 5432);
-        assert_eq!(res.db_pars.db_name, "mon");
+        assert_eq!(res.db_pars.mon_db_name, "mon");
+        assert_eq!(res.db_pars.src_db_name, "who");
     }
 
 
@@ -578,7 +611,8 @@ log_folder_path="E:/MDR/MDR Logs"
 db_host="localhost"
 db_user="user_name"
 db_password="password"
-db_name="mon"
+mon_db_name="mon"
+src_db_name="who"
 
 "#;
         let config_string = config.to_string();
@@ -588,7 +622,8 @@ db_name="mon"
         assert_eq!(res.db_pars.db_user, "user_name");
         assert_eq!(res.db_pars.db_password, "password");
         assert_eq!(res.db_pars.db_port, 5432);
-        assert_eq!(res.db_pars.db_name, "mon");
+        assert_eq!(res.db_pars.mon_db_name, "mon");
+        assert_eq!(res.db_pars.src_db_name, "who");
     }
 
 }

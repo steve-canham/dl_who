@@ -1,4 +1,4 @@
-
+use chrono::NaiveDate;
 
 #[allow(dead_code)]
 #[derive(serde::Deserialize)]
@@ -59,7 +59,7 @@ pub struct WHOLine
     pub results_url_link: String,                   // 44
     pub results_summary: String,                    // 45
     pub results_date_posted: String,                // 46
-    pub results_date_first_pubation: String,        // 47
+    pub results_date_first_pub: String,             // 47
     pub results_baseline_char: String,              // 48
     pub results_participant_flow: String,           // 49
     pub results_adverse_events: String,             // 50
@@ -499,7 +499,7 @@ pub struct WHORecord
     pub results_url_link: Option<String>,
     pub results_summary: Option<String>,
     pub results_date_posted: Option<String>,
-    pub results_date_first_pubation: Option<String>,
+    pub results_date_first_pub: Option<String>,
     pub results_url_protocol: Option<String>,
     pub ipd_plan: Option<String>,
     pub ipd_description: Option<String>,
@@ -636,5 +636,32 @@ impl MeddraCondition {
             soc_term,
         }
     }
+}
+
+
+#[derive(Debug)]
+pub struct WHOSummary
+{
+    pub source_id: i32, 
+    pub sd_sid: String, 
+    pub title: Option<String>,
+    pub remote_url: Option<String>,
+    pub study_type: Option<String>,
+    pub reg_year: Option<i32>,
+    pub reg_month: Option<i32>,
+    pub reg_day: Option<i32>,
+    pub enrol_year: Option<i32>,
+    pub enrol_month: Option<i32>,
+    pub enrol_day: Option<i32>,
+    pub study_status: Option<String>,
+    pub results_yes_no: Option<String>,
+    pub results_url_link: Option<String>,
+    pub results_url_protocol: Option<String>,
+    pub results_date_posted: Option<NaiveDate>,
+    pub results_date_first_pub: Option<NaiveDate>,
+    pub results_date_completed: Option<NaiveDate>,
+    pub table_name: String,
+    pub country_list: Option<Vec<String>>,
+    pub date_last_rev: Option<NaiveDate>,
 }
 

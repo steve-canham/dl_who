@@ -33,6 +33,7 @@ pub fn get_source_id(sd_sid: &String) -> i32 {
 
 pub fn get_db_name (source_id: i32) -> String {
     let db_name = match source_id {
+        100120 => "ctg",
         100116 => "anzctr",
         100117 => "rebec",
         100118 => "chictr",
@@ -42,6 +43,7 @@ pub fn get_db_name (source_id: i32) -> String {
         100123 => "euctr",
         100124 => "drks",
         100125 => "irct",
+        100126 => "isrctn",
         100127 => "jprn",
         100128 => "pactr",
         100129 => "rpuec",
@@ -738,7 +740,7 @@ pub fn add_phase_features(phase: &String) -> Vec<WhoStudyFeature>
                     })
                 }
             },
-            None => None,
+           None => None,
         }  
     }
 

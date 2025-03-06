@@ -1,12 +1,13 @@
 mod file_models;
 mod processor;
+pub mod data_access;
 pub mod who_helper;
 pub mod gen_helper;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
 use crate::{AppError, DownloadResult};
-use crate::data::{update_who_study_mon, add_new_single_file_record, add_file_contents_record};
+use data_access::{update_who_study_mon, add_new_single_file_record, add_file_contents_record, store_who_summary};
 use file_models::WHOLine;
 use std::fs;
 use std::io::BufReader;
@@ -90,6 +91,46 @@ pub async fn process_single_file(file_path: &PathBuf, json_path: &PathBuf, dl_id
     Ok(file_res)
 
 }
+
+
+pub async fn store_single_file(file_path: &PathBuf, pool: &Pool<Postgres>) -> Result<(), AppError> {
+
+    // Set up source file, csv reader, counters, hash table.
+
+    let file = File::open(file_path)?;
+    let buf_reader = BufReader::new(file);
+    let mut csv_rdr = ReaderBuilder::new()
+        .has_headers(false)
+        .from_reader(buf_reader);
+
+    let mut i = 0;
+    for result in csv_rdr.deserialize() {
+
+        i +=1;
+        if i % 100 == 0 {
+            info!("{} records checked", i);
+        }
+
+        let who_line: WHOLine = match result {
+             Ok(w) => w,
+             Err(e) => return Err(AppError::CsvError(e, i.to_string())),
+        };
+        
+        let rec = match processor::summarise_line(who_line, i)
+        {
+            Some(w) => w,
+            None =>  { continue;},
+        };
+        
+        store_who_summary(rec, pool).await?;             // add or update database record
+
+    }
+   
+    Ok(())
+
+}
+
+
 
 fn folder_exists(folder_name: &PathBuf) -> bool {
     let res = match folder_name.try_exists() {

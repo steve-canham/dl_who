@@ -1,11 +1,9 @@
-mod data_models;
-
 use sqlx::{Pool, Postgres};
 use std::path::PathBuf;
 use chrono::{NaiveDate, Utc};
 use std::collections::HashMap;
 use crate::{err::AppError, DownloadResult};
-
+use crate:: who::file_models::WHOSummary;
 
 pub async fn update_who_study_mon(db_name: &String, sd_sid: &String, remote_url: &Option<String>, dl_id: i32,
                      record_date:&String, full_path: &PathBuf, pool: &Pool<Postgres>) -> Result<bool, AppError> {
@@ -118,11 +116,59 @@ pub async fn add_file_contents_record(dl_id: i32, file_path: &PathBuf, source_to
     Ok(res.rows_affected())
 }
 
- /*
+pub async fn store_who_summary(rec: WHOSummary, pool: &Pool<Postgres>) -> Result<bool, AppError> {
 
- 
+    let now = Utc::now();
+    let sql_prefix = "INSERT INTO sd.".to_string() + &rec.table_name;
+    let sql = sql_prefix + r#" (source_id, sd_sid, title, remote_url, study_type, 
+                    reg_year, reg_month, reg_day, enrol_year, enrol_month, enrol_day,
+                    study_status, results_yes_no, results_url_link, results_url_protocol, 
+                    results_date_posted, results_date_first_pub, results_date_completed,
+                    country_list, date_last_rev, date_last_edited)
+            VALUES
+                ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 
+                $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+            ON CONFLICT (sd_sid)
+            DO UPDATE SET
+                source_id = $1, 
+                title = $3, 
+                remote_url = $4, 
+                study_type = $5, 
+                reg_year = $6, 
+                reg_month = $7, 
+                reg_day = $8, 
+                enrol_year = $9, 
+                enrol_month = $10, 
+                enrol_day = $11,
+                study_status = $12,  
+                results_yes_no = $13,  
+                results_url_link = $14,  
+                results_url_protocol = $15,  
+                results_date_posted = $16,  
+                results_date_first_pub = $17,  
+                results_date_completed = $18, 
+                country_list = $19,  
+                date_last_rev = $20,  
+                date_last_edited = $21"#;
+
+    let res = sqlx::query(&sql)
+        .bind(rec.source_id).bind(rec.sd_sid).bind(rec.title).bind(rec.remote_url)
+        .bind(rec.study_type).bind(rec.reg_year).bind(rec.reg_month).bind(rec.reg_day)
+        .bind(rec.enrol_year).bind(rec.enrol_month).bind(rec.enrol_day).bind(rec.study_status)
+        .bind(rec.results_yes_no).bind(rec.results_url_link).bind(rec.results_url_protocol)
+        .bind(rec.results_date_posted).bind(rec.results_date_first_pub).bind(rec.results_date_completed)
+        .bind(rec.country_list).bind(rec.date_last_rev).bind(now)
+        .execute(pool).await
+        .map_err(|e| AppError::SqlxError(e, sql))?;
+
+    Ok(res.rows_affected() == 1)
+
+} 
+
+
+/*
+
 pub fn is_who_test_study() -> bool {
-
 
     public bool IsWHOTestStudy(string dbname, string sd_sid)
     {
@@ -133,35 +179,30 @@ pub fn is_who_test_study() -> bool {
         bool? res = conn.QueryFirstOrDefault<bool?>(sql_string);
         return res == true;
     }
-
-
     false
 }
 
-
-    public bool WriteFile(string sid, string jsonString, string folder_path)
+public bool WriteFile(string sid, string jsonString, string folder_path)
+{
+    try
     {
-        try
+        // Write out study record as json.
+
+        string full_path = Path.Combine(folder_path, sid + ".json");
+        File.WriteAllText(full_path, jsonString);
+
+        if (IsTestStudy(sid))
         {
-            // Write out study record as json.
+            // write out copy of the file in the test folder
 
-            string full_path = Path.Combine(folder_path, sid + ".json");
-            File.WriteAllText(full_path, jsonString);
-
-            if (IsTestStudy(sid))
-            {
-                // write out copy of the file in the test folder
-
-                string test_path = _logging_helper.TestFilePath;
-                string full_test_path = Path.Combine(test_path, sid + ".json");
-                File.WriteAllText(full_test_path, jsonString);
-            }
-            return true;
+            string test_path = _logging_helper.TestFilePath;
+            string full_test_path = Path.Combine(test_path, sid + ".json");
+            File.WriteAllText(full_test_path, jsonString);
         }
-
+        return true;
     }
 
-
 }
+
 
 */

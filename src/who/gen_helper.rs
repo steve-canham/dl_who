@@ -136,6 +136,10 @@ impl DateExtensions for String {
 
         date_string = self.trim_matches('"').to_string();
         date_string = date_string.replace("/", "-").replace(".", "-").replace(",", "");   // regularise delimiters
+        if date_string.trim() == ""
+        {
+            return None
+        }
         iso_date =  date_string.clone();   // as the initial default
 
         let p1 = r#"^(19|20)\d{2}-(0?[1-9]|1[0-2])-(0?[1-9]|1\d|2\d|3[0-1])$"#;
@@ -146,6 +150,12 @@ impl DateExtensions for String {
         let re3 = Regex::new(p3).unwrap();
         let p4 = r#"^(0?[1-9]|1\d|2\d|3[0-1]) (January|February|March|April|May|June|July|August|September|October|November|December) (19|20)\d{2}$"#;
         let re4 = Regex::new(p4).unwrap();
+        let p5 = r#"^(January|February|March|April|May|June|July|August|September|October|November|December) (0?[1-9]|1\d|2\d|3[0-1]) (19|20)\d{2}$"#;
+        let re5 = Regex::new(p5).unwrap();
+        let p6 = r#"^(January|February|March|April|May|June|July|August|September|October|November|December) (19|20)\d{2}$"#;
+        let re6 = Regex::new(p6).unwrap();
+
+
         let py = r#"(19|20)\d{2}$"#;
         let re_yr = Regex::new(py).unwrap();
         
@@ -227,7 +237,57 @@ impl DateExtensions for String {
                 iso_date = format!("{}-{}-{}", year_s, month_s, day_s);
             }
         }
-
+        else if re5.is_match(&date_string) {   // MMMM_dd_yyyy
+            let dash1 = &date_string.find(' ').unwrap();
+            let dash2 = &date_string.rfind(' ').unwrap();
+            if re_yr.is_match(&date_string) {
+                let caps = re_yr.captures(&date_string).unwrap();
+                let year_s = &caps[0];
+                let month = &date_string[..*dash1];
+                let month_s = match month{
+                    "January" => "01",
+                    "February" => "02",
+                    "March" => "03",
+                    "April" => "04",
+                    "May" => "05",
+                    "June" => "06",
+                    "July" => "07",
+                    "August" => "08",
+                    "September" => "09",
+                    "October" => "10",
+                    "November" => "11",
+                    "December" => "12",
+                    _ => "00",
+                };
+                let day_s =  format!("{:0>2}", &date_string[(dash1 + 1)..*dash2]);
+                iso_date = format!("{}-{}-{}", year_s, month_s, day_s);
+            }
+        }
+        else if re6.is_match(&date_string) {   // MMMM_yyyy
+            let dash1 = &date_string.find(' ').unwrap();
+            if re_yr.is_match(&date_string) {
+                let caps = re_yr.captures(&date_string).unwrap();
+                let year_s = &caps[0];
+                let month = &date_string[..*dash1];
+                let month_s = match month{
+                    "January" => "01",
+                    "February" => "02",
+                    "March" => "03",
+                    "April" => "04",
+                    "May" => "05",
+                    "June" => "06",
+                    "July" => "07",
+                    "August" => "08",
+                    "September" => "09",
+                    "October" => "10",
+                    "November" => "11",
+                    "December" => "12",
+                    _ => "00",
+                };
+                let day_s =  "15".to_string();          // for now **** Need to handle partial dates!
+                iso_date = format!("{}-{}-{}", year_s, month_s, day_s);
+            }
+        }
         Some(iso_date)
     }
 

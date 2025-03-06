@@ -6,13 +6,14 @@ use regex::Regex;
 use std::sync::LazyLock;
 use log::error;
 use crate::who::file_models::MeddraCondition;
+use chrono::NaiveDate;
 
 use super::who_helper::{get_db_name, get_source_id, get_status, 
     get_conditions, split_and_dedup_countries, 
     add_int_study_features, add_obs_study_features, add_eu_design_features,
     add_masking_features, add_phase_features, add_eu_phase_features, split_and_add_ids};
 use super::gen_helper::{StringExtensions, DateExtensions};
-use super::file_models::{WHOLine, WHORecord, WhoStudyFeature, SecondaryId};
+use super::file_models::{WHOLine, WHORecord, WhoStudyFeature, SecondaryId, WHOSummary};
 
 
 pub fn process_line(w: WHOLine, i: i32) -> (i32, Option<WHORecord>)  {
@@ -202,26 +203,6 @@ pub fn process_line(w: WHOLine, i: i32) -> (i32, Option<WHORecord>)  {
     }
 
 
-    let mut study_type = w.study_type.tidy();
-    if study_type.is_some()
-    {
-        let stype = study_type.clone().unwrap().to_lowercase();
-        if stype.starts_with("intervention")
-        {
-            study_type = Some("Interventional".to_string());
-        }
-        else if stype.starts_with("observation")
-              || stype.starts_with("epidem")
-        {
-            study_type = Some("Observational".to_string());
-        }
-        else
-        {
-            study_type = Some(format!("Other ({})", study_type.unwrap()));
-        }
-    }
-
-
     let mut agemin = w.age_min.tidy();
     let mut agemin_units: Option<String> = None;
     if agemin.is_some()
@@ -392,7 +373,7 @@ pub fn process_line(w: WHOLine, i: i32) -> (i32, Option<WHORecord>)  {
         results_url_link: w.results_url_link.tidy(),
         results_summary: w.results_summary.tidy(),
         results_date_posted: w.results_date_posted.as_iso_date(),
-        results_date_first_pubation: w.results_date_first_pubation.as_iso_date(),
+        results_date_first_pub: w.results_date_first_pub.as_iso_date(),
         results_url_protocol: w.results_url_protocol.tidy(),
         ipd_plan: ipd_plan,
         ipd_description:ipd_description,
@@ -409,48 +390,198 @@ pub fn process_line(w: WHOLine, i: i32) -> (i32, Option<WHORecord>)  {
         condition_list: conditions_option,
         meddra_condition_list: meddraconds_option,
     }))
-
-
 }
 
 
+pub fn summarise_line(w: WHOLine, i: i32) -> Option<WHOSummary>  {
 
+    let sid = w.trial_id.replace("/", "-").replace("\\", "-").replace(".", "-");
+    let mut sd_sid = sid.trim().to_string();
+    
+    if sd_sid == "" || sd_sid == "null" || sd_sid == "NULL" {        // Seems to happen, or has happened in the past, with one Dutch trial.
+        error!("Well that's weird - no study id on line {}!", i);
+        return None;
+    }
 
-/*
-            // Need to check if still required...
+    let source_id = get_source_id(&sd_sid);
+    if source_id == 0
+    {
+        error!("Well that's weird - can't match the study id's {} source on line {}!", sd_sid, i);
+        return None;
+       
+    }
 
-            if (source_id is 100132 && sd_sid.StartsWith("NTR"))
-            {
-                // For the Dutch trials there is confusion over the sd_sid, which
-                // should all be NL numbers, but older trials are presented by WHO as 
-                // NTR trials, with the NL as a secondary id. In fact it is the other way round!
-                // Though all about to be superseded anyway by the new dutch trial registry...
+    if source_id == 100123 {
+        sd_sid = sd_sid[0..19].to_string(); // lose country specific suffix
+    }
 
-                if (secondary_ids.Any())
-                {
-                    foreach (Secondary_Id sec_id in secondary_ids)
-                    {
-                        if (sec_id.processed_id is not null 
-                            &&  Regex.Match(sec_id.processed_id!, @"^NL\d{1,4}$").Success)
-                        {
-                            string new_sd_sid = sec_id.processed_id;
-                            sec_id.processed_id = sd_sid;  // change the secondary id to the old sd_sid
-                            sec_id.sec_id = sd_sid;
-                            sec_id.sec_id_type_id = 45;
-                            sec_id.sec_id_type = "Obsolete NTR number";
-                            sd_sid = new_sd_sid;
-                            r.sd_sid = sd_sid;
-                            break;
-                        }
-                    }
-                }
-            }
-                        
+    let mut title = w.pub_title.replace_unicodes();
+    if title.is_none() {
+        title = w.scientific_title.replace_unicodes();
+    }
+    
 
+    let reg_year: Option<i32>;
+    let reg_month: Option<i32>;
+    let reg_day: Option<i32>;
+    (reg_year, reg_month, reg_day) = split_iso_date(w.date_registration);
 
+    let enrol_year: Option<i32>;
+    let enrol_month: Option<i32>;
+    let enrol_day: Option<i32>;
+    (enrol_year, enrol_month, enrol_day) = split_iso_date(w.date_enrollement);
+    
+
+    let mut study_type = w.study_type.tidy();
+    if study_type.is_some()
+    {
+        let stype = study_type.clone().unwrap().to_lowercase();
+        if stype.starts_with("intervention")
+        {
+            study_type = Some("Interventional".to_string());
         }
+        else if stype.starts_with("observation")
+              || stype.starts_with("epidem")
+        {
+            study_type = Some("Observational".to_string());
+        }
+        else
+        {
+            study_type = Some(format!("Other ({})", study_type.unwrap()));
+        }
+    }
+   
+    let mut study_status = w.recruitment_status.tidy();
+    if study_status.is_some() {
+        let status = study_status.clone().unwrap().to_lowercase();
+        if status.len() > 5
+        {
+            study_status = get_status(&status);
+        }
+        else {
+            study_status = None;
+        }
+    }
+
+    let mut table_name = get_db_name(source_id);
+    if source_id == 100120 {
+        let suffix = match reg_year {
+            Some(y) => if y < 2010 {
+                    "_lt_2010"
+                }
+                else if y < 2015 {
+                    "_2010_14"
+                }
+                else if y < 2020 {
+                    "_2015_19"
+                }
+                else if y < 2025 {
+                    "_2020_24"
+                }
+                else {  
+                    "_2025_29"
+                },
+            None => "_LT_2010",
+        };
+        table_name = table_name + suffix;
+    }
+
+    if source_id == 100118 || source_id == 100121 || source_id == 100127 {
+        let suffix = match reg_year {
+            Some(y) => if y < 2020 {
+                "_lt_2020"
+            }
+            else {
+                "_ge_2020"
+            }
+            ,
+            None => "_lt_2020",
+        };
+        table_name = table_name + suffix;
+    }
+    
+
+    let country_list = w.countries.tidy();
+    let countries: Option<Vec<String>>;
+    if country_list.is_some()
+    {
+        countries = split_and_dedup_countries(&country_list.unwrap());
+    }
+    else {
+        countries = None;
+    }
+
+
+    let res_posted = get_naive_date (w.results_date_posted);
+    let res_first_pub = get_naive_date (w.results_date_first_pub);
+    let res_completed = get_naive_date (w.results_date_completed);
+    let date_last_rev = get_naive_date (w.last_updated);
+  
+    Some(WHOSummary {
+            source_id: source_id, 
+            sd_sid: sd_sid, 
+            title: title,
+            remote_url: w.url.tidy(),
+            study_type: study_type,
+            reg_year: reg_year,
+            reg_month: reg_month,
+            reg_day: reg_day,
+            enrol_year: enrol_year,
+            enrol_month: enrol_month,
+            enrol_day: enrol_day,
+            study_status: study_status,
+            results_yes_no: w.results_yes_no.tidy(),
+            results_url_link: w.results_url_link.tidy(),
+            results_url_protocol: w.results_url_protocol.tidy(),
+            results_date_posted: res_posted,
+            results_date_first_pub: res_first_pub,
+            results_date_completed: res_completed,
+            table_name: table_name,
+            country_list: countries,
+            date_last_rev: date_last_rev,    // assumed to be always present
+})
+
+}
+
+fn split_iso_date (dt: String) -> (Option<i32>, Option<i32>, Option<i32>) {
+
+    match dt.as_iso_date() {
+        Some(d) => {
+            if d.len() != 10 {
+                println!("Odd iso date: {}", dt);
+            }
+            let year: i32 = d[0..4].parse().unwrap_or(0);
+            let month: i32 = d[5..7].parse().unwrap_or(0);
+            let day: i32 = d[8..].parse().unwrap_or(0);
+            if year != 0 && month != 0 && day != 0 {
+                (Some(year), Some(month), Some(day))           
+            }
+            else {
+                (None, None, None)      
+            }
+         },
+         None => (None, None, None),     
     }
 }
 
+fn get_naive_date (dt: String) -> Option<NaiveDate> {
 
-*/
+   match dt.as_iso_date()
+   {
+        Some(s) => {
+            let base_date = NaiveDate::parse_from_str("1900-01-01", "%Y-%m-%d").unwrap();
+            let d = match NaiveDate::parse_from_str(&s, "%Y-%m-%d") {
+                Ok(d) => d,
+                Err(_) => base_date,
+            };
+            
+            if d != base_date {
+                Some(d)
+            }
+            else {
+                None
+            }
+        },
+        None => None,
+   }
+}
