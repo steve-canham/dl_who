@@ -7,7 +7,8 @@ pub mod gen_helper;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use crate::{AppError, DownloadResult};
-use data_access::{update_who_study_mon, add_new_single_file_record, add_file_contents_record, store_who_summary};
+use data_access::{update_who_study_mon, add_new_single_file_record, 
+    add_file_contents_record, add_contents_record, store_who_summary};
 use file_models::WHOLine;
 use std::fs;
 use std::io::BufReader;
@@ -97,17 +98,22 @@ pub async fn store_single_file(file_path: &PathBuf, pool: &Pool<Postgres>) -> Re
 
     // Set up source file, csv reader, counters, hash table.
 
-    let file = File::open(file_path)?;
+    let file = File::open(file_path)
+               .map_err(|e| AppError::IoReadErrorWithPath(e, file_path.to_owned()))?;
     let buf_reader = BufReader::new(file);
     let mut csv_rdr = ReaderBuilder::new()
         .has_headers(false)
         .from_reader(buf_reader);
 
+    let mut source_tots: HashMap<i32, i32> = HashMap::new();
     let mut i = 0;
+    info!("");
+    info!("Processing file {:?}", file_path);
+
     for result in csv_rdr.deserialize() {
 
         i +=1;
-        if i % 100 == 0 {
+        if i % 5000 == 0 {
             info!("{} records checked", i);
         }
 
@@ -122,12 +128,18 @@ pub async fn store_single_file(file_path: &PathBuf, pool: &Pool<Postgres>) -> Re
             None =>  { continue;},
         };
         
+        source_tots.entry(rec.source_id).and_modify(|n| *n += 1).or_insert(1);
+
         store_who_summary(rec, pool).await?;             // add or update database record
 
     }
-   
-    Ok(())
 
+    info!("{} records checked in total for this file", i);
+    info!("---------------------------------------------------");
+
+    add_contents_record(file_path, &mut source_tots, pool).await?;
+
+    Ok(())
 }
 
 

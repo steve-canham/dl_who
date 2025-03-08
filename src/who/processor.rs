@@ -8,7 +8,7 @@ use log::error;
 use crate::who::file_models::MeddraCondition;
 use chrono::NaiveDate;
 
-use super::who_helper::{get_db_name, get_source_id, get_status, 
+use super::who_helper::{get_db_name, get_source_id, get_type, get_status, 
     get_conditions, split_and_dedup_countries, 
     add_int_study_features, add_obs_study_features, add_eu_design_features,
     add_masking_features, add_phase_features, add_eu_phase_features, split_and_add_ids};
@@ -43,36 +43,11 @@ pub fn process_line(w: WHOLine, i: i32) -> (i32, Option<WHORecord>)  {
         sd_sid = sd_sid[0..19].to_string(); // lose country specific suffix
     }
     
-    let mut study_type = w.study_type.tidy();
-    if study_type.is_some()
-    {
-        let stype = study_type.clone().unwrap().to_lowercase();
-        if stype.starts_with("intervention")
-        {
-            study_type = Some("Interventional".to_string());
-        }
-        else if stype.starts_with("observation")
-              || stype.starts_with("epidem")
-        {
-            study_type = Some("Observational".to_string());
-        }
-        else
-        {
-            study_type = Some(format!("Other ({})", study_type.unwrap()));
-        }
-    }
-   
-    let mut study_status = w.recruitment_status.tidy();
-    if study_status.is_some() {
-        let status = study_status.clone().unwrap().to_lowercase();
-        if status.len() > 5
-        {
-            study_status = get_status(&status);
-        }
-        else {
-            study_status = None;
-        }
-    }
+    let study_type = w.study_type.tidy();
+    let stype = get_type(&study_type);
+
+    let study_status = w.recruitment_status.tidy();
+    let status = get_status(&study_status);
 
     let design_list = w.study_design.tidy();
     let design_orig = design_list.clone();
@@ -196,7 +171,7 @@ pub fn process_line(w: WHOLine, i: i32) -> (i32, Option<WHORecord>)  {
     let countries: Option<Vec<String>>;
     if country_list.is_some()
     {
-        countries = split_and_dedup_countries(&country_list.unwrap());
+        countries = split_and_dedup_countries(source_id, &country_list.unwrap());
     }
     else {
         countries = None;
@@ -346,11 +321,11 @@ pub fn process_line(w: WHOLine, i: i32) -> (i32, Option<WHORecord>)  {
         scientific_contact_familyname: w.sci_contact_last_name.tidy(),
         scientific_contact_email: w.sci_contact_email.tidy(),
         scientific_contact_affiliation: w.sci_contact_affiliation.tidy(),
-        study_type: study_type,
+        study_type: stype,
         date_registration: w.date_registration.as_iso_date(),
         date_enrolment: w.date_enrollement.as_iso_date(),
         target_size: w.target_size.tidy(),
-        study_status: study_status,
+        study_status: status,
         primary_sponsor: w.primary_sponsor.tidy(),
         secondary_sponsors: w.secondary_sponsors.tidy(),
         source_support: w.source_support.tidy(),
@@ -431,38 +406,12 @@ pub fn summarise_line(w: WHOLine, i: i32) -> Option<WHOSummary>  {
     let enrol_day: Option<i32>;
     (enrol_year, enrol_month, enrol_day) = split_iso_date(w.date_enrollement);
     
+    let study_type = w.study_type.tidy();
+    let stype = get_type(&study_type);
 
-    let mut study_type = w.study_type.tidy();
-    if study_type.is_some()
-    {
-        let stype = study_type.clone().unwrap().to_lowercase();
-        if stype.starts_with("intervention")
-        {
-            study_type = Some("Interventional".to_string());
-        }
-        else if stype.starts_with("observation")
-              || stype.starts_with("epidem")
-        {
-            study_type = Some("Observational".to_string());
-        }
-        else
-        {
-            study_type = Some(format!("Other ({})", study_type.unwrap()));
-        }
-    }
+    let study_status = w.recruitment_status.tidy();
+    let status = get_status(&study_status);
    
-    let mut study_status = w.recruitment_status.tidy();
-    if study_status.is_some() {
-        let status = study_status.clone().unwrap().to_lowercase();
-        if status.len() > 5
-        {
-            study_status = get_status(&status);
-        }
-        else {
-            study_status = None;
-        }
-    }
-
     let mut table_name = get_db_name(source_id);
     if source_id == 100120 {
         let suffix = match reg_year {
@@ -505,7 +454,7 @@ pub fn summarise_line(w: WHOLine, i: i32) -> Option<WHOSummary>  {
     let countries: Option<Vec<String>>;
     if country_list.is_some()
     {
-        countries = split_and_dedup_countries(&country_list.unwrap());
+        countries = split_and_dedup_countries(source_id, &country_list.unwrap());
     }
     else {
         countries = None;
@@ -522,14 +471,14 @@ pub fn summarise_line(w: WHOLine, i: i32) -> Option<WHOSummary>  {
             sd_sid: sd_sid, 
             title: title,
             remote_url: w.url.tidy(),
-            study_type: study_type,
+            study_type: stype,
+            study_status: status,
             reg_year: reg_year,
             reg_month: reg_month,
             reg_day: reg_day,
             enrol_year: enrol_year,
             enrol_month: enrol_month,
             enrol_day: enrol_day,
-            study_status: study_status,
             results_yes_no: w.results_yes_no.tidy(),
             results_url_link: w.results_url_link.tidy(),
             results_url_protocol: w.results_url_protocol.tidy(),

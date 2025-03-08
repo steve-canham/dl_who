@@ -59,54 +59,140 @@ pub fn get_db_name (source_id: i32) -> String {
 }
 
 
-pub fn get_status(status: &String) -> Option<String> {
-
-    if status == "complete" || status == "completed" 
-    || status == "complete: follow-up complete" || status == "complete: follow up complete" 
-    || status == "data analysis completed" || status == "main results already published"
+pub fn get_type(study_type: &Option<String>) -> String {
+    
+    if study_type.is_some() 
     {
-        Some("Completed".to_string())
+        let t = study_type.clone().unwrap().to_lowercase();
+        if t.starts_with("intervention")
+            || t == "BA/BE"
+        {
+            "Interventional".to_string()
+        }
+        else if t.starts_with("observation")
+              || t.starts_with("epidem")
+              || t == "PMS"
+              || t == "Relative factors research"
+              || t == "Cause"
+              || t == "Cause/Relative factors study"
+              || t == "Health Services Research"
+              || t == "Health services reaserch"
+        {
+            "Observational".to_string()
+        }
+        else if t == "Expanded Access"
+        {
+            "Expanded Access".to_string()
+        }
+        else if t == "Diagnostic test"
+        {
+            "Diagnostic test".to_string()
+        }
+        else if t == "Not Specified" || t == "N/A" {
+            "Not provided".to_string()
+        }
+        else if t  ==  "Other" 
+             || t  == "Others,meta-analysis etc" 
+             || t.to_lowercase()  == "basic science"
+             || t  == "Prevention"
+             || t  == "Screening"
+             || t == "Treatment study"
+        {
+                "Other".to_string()
+        }
+        else  
+        {
+            //stype == "Not Specified" || stype == "N/A" 
+            "Not provided".to_string()
+            
+        }
     }
-    else if status == "complete: follow-up continuing" 
-             || status == "complete: follow up continuing" || status == "active, not recruiting" 
-             || status == "closed to recruitment of participants" || status == "no longer recruiting" 
-             || status == "not recruiting" || status == "recruitment completed"
-    {
-        Some("Active, not recruiting".to_string())
-    }
-    else if status == "recruiting" || status =="open public recruiting" 
-    || status == "open to recruitment"
-    {
-        Some("Recruiting".to_string())
-    }
-    else if status.contains("pending")
-          || status == "not yet recruiting"
-    {
-        Some("Not yet recruiting".to_string())
-    }
-    else if status.contains("suspended")
-          || status.contains("temporarily closed")
-    {
-        Some("Suspended".to_string())
-    }
-    else if status.contains("terminated")
-          || status.contains("stopped early")
-    {
-        Some("Terminated".to_string())
-    }
-    else if status.contains("withdrawn")
-    {
-        Some("Withdrawn".to_string())
-    }
-    else if status.contains("enrolling by invitation")
-    {
-        Some("Enrolling by invitation".to_string())
-    }
-    else
-    {
-        Some(format!("Other ({})", status))
+    else {
+        "Not provided".to_string()
     }
 }
+
+
+pub fn get_status(status: &Option<String>) -> String {
+
+    if status.is_some() {
+
+        let s = status.clone().unwrap().to_lowercase();
+        if s.len() > 5  {
+            if s == "complete" || s == "completed" 
+                || s == "complete: follow-up complete" || s == "complete: follow up complete" 
+                || s == "data analysis completed" || s == "main results already published"
+                || s == "approved for marketing"
+            {
+                "Completed".to_string()
+            }
+            else if s == "complete: follow-up continuing" 
+                || s == "complete: follow up continuing" || s == "active, not recruiting" 
+                || s == "closed to recruitment of participants" || s == "no longer recruiting" 
+                || s == "not recruiting" || s == "recruitment completed"
+                || s == "enrollment closed"
+                || s == "recruiting stopped after recruiting started"
+            {
+                "Active, not recruiting".to_string()
+            }
+            else if s == "recruiting" || s =="open public recruiting" 
+            || s == "open to recruitment" || s =="in enrollment"
+            {
+                "Recruiting".to_string()
+            }
+            else if s.contains("pending")
+                || s == "not yet recruiting"
+                || s == "without startig enrollment"
+                || s == "preinitiation"
+            {
+                "Not yet recruiting".to_string()
+            }
+            else if s.contains("suspended")
+                || s.contains("temporarily closed")
+                || s == "temporary halt"
+                || s == "temporarily not available"
+            {
+                "Suspended".to_string()
+            }
+            else if s.contains("terminated")
+                || s.contains("stopped early")
+                || s == "stopped"
+            {
+                "Terminated".to_string()
+            }
+            else if s.contains("withdrawn")
+            {
+                "Withdrawn".to_string()
+            }
+            else if s.contains("enrolling by invitation")
+            {
+                "Enrolling by invitation".to_string()
+            }
+            else if s == "ongoing" 
+                    || s == "authorised-recruitment may be ongoing or finished" 
+                    || s == "available"
+            {
+                "Ongoing, recruitment status unclear".to_string()
+            }
+            else if s == "not applicable" {
+                "Recorded as not applicable".to_string()
+            }
+            else
+            {
+                // = withheld, or = unknown, or = no longer available
+                // or = deleted from source registry, or = unknown status
+                "Not provided".to_string()
+            }
+        }
+        else {
+            "Not provided".to_string()
+        }
+    }
+    else {
+        "Not provided".to_string()
+    }
+}
+
 
 pub fn get_conditions(condition_list: &String, source_id: i32) -> (Vec<String>, Vec<MeddraCondition>) {
 
@@ -202,38 +288,93 @@ pub fn get_conditions(condition_list: &String, source_id: i32) -> (Vec<String>, 
 
 
 
-pub fn split_and_dedup_countries(country_list: &String) -> Option<Vec<String>> {
+pub fn split_and_dedup_countries(source_id: i32, country_list: &String) -> Option<Vec<String>> {
 
     // country list known to be non-null and already 'tidied'.
 
     let in_strings: Vec<&str> = country_list.split(';').collect();
     let mut out_strings = Vec::<String>::new();
-
+   
     for c in in_strings
     {
-        if out_strings.len() == 0
-        {
-            out_strings.push(c.to_string());
+        // Sri Lankan registry (in particular) uses commas to list countries
+        // but commas appear legitimately in many versions of country names
+        
+        let mut this_c = c.to_lowercase().replace(".", "");
+        let mut this_c_consumed = false;
+
+        if source_id == 100127 {// Some odd 'regional' countries used by the Japanese registries
+            this_c = this_c.replace("asia except japan", "asia");
+            this_c = this_c.replace("asia exept japan", "asia");
+            this_c = this_c.replace("japan,asia(except japan)", "asia");
+            this_c = this_c.replace("asia(except japan)", "asia");
+            this_c = this_c.replace("none (japan only)", "japan");
+            this_c = this_c.replace("none other than japan", "japan");
         }
-        else
-        {
-            let mut add_string = true;
-            for s in &out_strings
-            {
-                if s == c
-                {
-                    add_string = false;
-                    break;
+
+        if this_c.contains(',') {
+
+            // Sri Lankan registry (in particular) uses commas to list countries
+            // but commas appear legitimately in many versions of country names
+
+            let complex_trim = |c| c == ',';    // remove ending commas
+            this_c = this_c.trim_matches(complex_trim).to_string();
+
+            this_c = this_c.replace("korea,", "koreas - ");
+            this_c = this_c.replace("aiwan,", "aiwan - ");
+            this_c = this_c.replace("congo,", "congo - ");
+            this_c = this_c.replace("republic,", "republic - ");
+            this_c = this_c.replace("iran,", "iran - ");
+            this_c = this_c.replace("kong,", "kong - ");
+            this_c = this_c.replace("sar,", "sar - ");
+            this_c = this_c.replace("macedonia,", "macedonia - ");
+            this_c = this_c.replace("moldova,", "moldova - ");
+            this_c = this_c.replace("palastine,", "palastine - ");
+            this_c = this_c.replace("palastinian,", "palastinian - ");
+            this_c = this_c.replace("tanzania,", "tanzania - ");
+            this_c = this_c.replace("islands,", "islands - ");
+
+            if this_c.contains(',') {
+                let added_strings: Vec<&str> = this_c.split(',').collect();
+                for ac in added_strings {
+                    if add_country_name(ac, &out_strings) {
+                        out_strings.push(ac.to_string());
+                    }
                 }
+                this_c_consumed = true;   // countries have been added from this string
             }
-            if add_string {
-                out_strings.push(c.to_string());
-            }
+        }
+
+        if !this_c_consumed && add_country_name(&this_c, &out_strings) {
+            out_strings.push(this_c.to_string());
         }
     }
 
     return Some(out_strings);
 }
+
+
+fn add_country_name(new_name:&str, out_strings: &Vec::<String>) -> bool {
+
+    if out_strings.len() == 0
+    {
+        true
+    }
+    else {
+        let mut add_string = true;
+        for s in out_strings
+        {
+            if s == new_name
+            {
+                add_string = false;
+                break;
+            }
+        }
+        add_string 
+    }
+}
+
+
 
 pub fn add_eu_design_features(design: &String) -> Vec<WhoStudyFeature> {
     let mut fs = Vec::<WhoStudyFeature>::new();

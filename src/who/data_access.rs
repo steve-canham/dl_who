@@ -116,6 +116,26 @@ pub async fn add_file_contents_record(dl_id: i32, file_path: &PathBuf, source_to
     Ok(res.rows_affected())
 }
 
+pub async fn add_contents_record(file_path: &PathBuf, source_tots: &mut HashMap<i32, i32>, pool: &Pool<Postgres>) -> Result<u64, AppError> {
+
+    let source_path = file_path.to_str().unwrap().replace("\\\\", "/").replace("\\", "/");   
+    let mut source_ids = Vec::<i32>::new();
+    let mut tots = Vec::<i32>::new();
+    for (k, v) in source_tots.drain() {
+        source_ids.push(k);
+        tots.push(v)
+    }
+    let sql = r#"Insert into met.who_file_contents (file_path, source_id, num_found)
+                 select $1, a.*
+                    from
+                    (select * from UNNEST($2::int[], $3::int[])) as a"#;
+               let res = sqlx::query(sql).bind(source_path)
+               .bind(source_ids).bind(tots)
+               .execute(pool).await.map_err(|e| AppError::SqlxError(e, sql.to_string()))?; 
+
+    Ok(res.rows_affected())
+}
+
 pub async fn store_who_summary(rec: WHOSummary, pool: &Pool<Postgres>) -> Result<bool, AppError> {
 
     let now = Utc::now();

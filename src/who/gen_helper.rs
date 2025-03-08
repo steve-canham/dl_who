@@ -136,7 +136,8 @@ impl DateExtensions for String {
 
         date_string = self.trim_matches('"').to_string();
         date_string = date_string.replace("/", "-").replace(".", "-").replace(",", "");   // regularise delimiters
-        if date_string.trim() == ""
+
+        if date_string.trim() == ""  // check again after changes
         {
             return None
         }
@@ -154,8 +155,6 @@ impl DateExtensions for String {
         let re5 = Regex::new(p5).unwrap();
         let p6 = r#"^(January|February|March|April|May|June|July|August|September|October|November|December) (19|20)\d{2}$"#;
         let re6 = Regex::new(p6).unwrap();
-
-
         let py = r#"(19|20)\d{2}$"#;
         let re_yr = Regex::new(py).unwrap();
         
@@ -288,7 +287,15 @@ impl DateExtensions for String {
                 iso_date = format!("{}-{}-{}", year_s, month_s, day_s);
             }
         }
-        Some(iso_date)
+        
+        // Final check in case none of the options above have worked
+        
+        if re1.is_match(&iso_date) && iso_date.len() == 10 { 
+             Some(iso_date)
+        }
+        else {
+            None
+        }
     }
 
 

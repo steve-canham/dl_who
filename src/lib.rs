@@ -133,19 +133,16 @@ pub async fn download(args: Vec<OsString>) -> Result<(), AppError> {
 
         552 => {
 
-            // Processing of a full data download (20+ files) (was type 103).
+            // Processing of a full data download (20+ files).
             
             let source_folder = params.csv_full_path;
-            let _file_num = params.full_file_num;
+            let file_num = params.full_file_num + 1;
             let file_stem = params.full_file_stem;
 
-            for i in 1..2 {
+            for i in 1..file_num {
                 let file_name = file_stem.clone() + &(format!("{:0>3}", i) + ".csv");
                 let file_path: PathBuf = [&source_folder, &PathBuf:: from(file_name)].iter().collect();
-                println!("{:?}", file_path);
                 who::store_single_file(&file_path, &src_pool).await?;
-                // dl_res = dl_res.add(res);
-                println!("{:?}", file_path);
             }
         },
 
