@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use crate::{AppError, DownloadResult};
 use data_access::{update_who_study_mon, add_new_single_file_record, 
-    add_file_contents_record, add_contents_record, store_who_summary};
+    add_contents_record, store_who_summary};
 use file_models::WHOLine;
 use std::fs;
 use std::io::BufReader;
@@ -20,7 +20,8 @@ use sqlx::{Pool, Postgres};
 use log::info;
 
 
-pub async fn process_single_file(file_path: &PathBuf, json_path: &PathBuf, dl_id: i32, pool: &Pool<Postgres>) -> Result<DownloadResult, AppError> {
+pub async fn process_single_file(file_path: &PathBuf, json_path: &PathBuf, dl_id: i32, 
+                mon_pool: &Pool<Postgres>, src_pool: &Pool<Postgres>) -> Result<DownloadResult, AppError> {
 
     // Set up source file, csv reader, counters, hash table.
 
@@ -31,11 +32,13 @@ pub async fn process_single_file(file_path: &PathBuf, json_path: &PathBuf, dl_id
         .from_reader(buf_reader);
     let mut file_res = DownloadResult::new();
     let mut source_tots: HashMap<i32, i32> = HashMap::new();
+    info!("");
+    info!("Processing file {:?}", file_path);
 
-     for result in csv_rdr.deserialize() {
+    for result in csv_rdr.deserialize() {
 
         file_res.num_checked +=1;
-        if file_res.num_checked % 100 == 0 {
+        if file_res.num_checked % 5000 == 0 {
             info!("{} records checked", file_res.num_checked);
         }
 
@@ -43,12 +46,39 @@ pub async fn process_single_file(file_path: &PathBuf, json_path: &PathBuf, dl_id
              Ok(w) => w,
              Err(e) => return Err(AppError::CsvError(e, file_res.num_checked.to_string())),
         };
+               
+        let rec_summ = match processor::summarise_line(&who_line, file_res.num_checked)
+        {
+            Some(r) => r,
+            None => {continue;},   // should apply to all records
+        };
         
-        let (source_id, who_rec) = processor::process_line(who_line, file_res.num_checked);
+        // Adjust running source totals (even if file not processed further)
+
+        let source_id = rec_summ.source_id;
+        source_tots.entry(source_id).and_modify(|n| *n += 1).or_insert(1);
+
+        // assemble variables from summary record, allows them to be passed 
+        // later even if the whole record has already been moved for storage 
+
+        let sid = rec_summ.sd_sid.clone();
+        let date_of_rec = rec_summ.date_last_rev;
+        let study_type = rec_summ.study_type;
+        let study_status = rec_summ.study_status;
+        let remote_url = rec_summ.remote_url.clone();
+        let idents = rec_summ.secondary_ids.clone();
+        let countries = rec_summ.country_list.clone();
+
+        store_who_summary(rec_summ, src_pool).await?;             // add or update summary database record
+        
+        if source_id == 100120 || source_id == 100126 {
+            continue;            // skip the following steps for these two sources (files generated separately)
+        }
+
+        let who_rec = processor::process_line(who_line, source_id, sid, study_type, study_status, 
+            remote_url, idents, countries);
 
         // Get source and adjust running source totals (even if file not processed further)
-
-        source_tots.entry(source_id).and_modify(|n| *n += 1).or_insert(1);
 
         if who_rec.is_none() { 
             continue;
@@ -75,7 +105,7 @@ pub async fn process_single_file(file_path: &PathBuf, json_path: &PathBuf, dl_id
         file.write_all(json_string.as_bytes())?;
         
         let added = update_who_study_mon(&db_name, &sd_sid, &rec.remote_url, dl_id,
-                        &rec.record_date, &full_path, pool).await?;
+                        &date_of_rec, &full_path, mon_pool).await?;
 
         file_res.num_downloaded +=1;
         if added {
@@ -84,16 +114,19 @@ pub async fn process_single_file(file_path: &PathBuf, json_path: &PathBuf, dl_id
 
     }
 
+    info!("{} records checked in total for this file", file_res.num_checked);
+    info!("---------------------------------------------------");
+
     // Update database with single file details and 
     // return the aggregate figures in the res struct ... 
 
-    add_new_single_file_record(dl_id, file_path, &file_res, pool).await?;
-    add_file_contents_record(dl_id, file_path, &mut source_tots, pool).await?;
+    add_new_single_file_record(dl_id, file_path, &file_res, mon_pool).await?;
+    add_contents_record(file_path, &mut source_tots, src_pool).await?;
     Ok(file_res)
 
 }
 
-
+/*
 pub async fn store_single_file(file_path: &PathBuf, pool: &Pool<Postgres>) -> Result<(), AppError> {
 
     // Set up source file, csv reader, counters, hash table.
@@ -141,7 +174,7 @@ pub async fn store_single_file(file_path: &PathBuf, pool: &Pool<Postgres>) -> Re
 
     Ok(())
 }
-
+ */
 
 
 fn folder_exists(folder_name: &PathBuf) -> bool {

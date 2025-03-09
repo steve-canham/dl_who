@@ -1,4 +1,5 @@
-use super::file_models::{SecondaryId, SecIdBase, WhoStudyFeature, MeddraCondition};
+use super::file_models::{MeddraCondition, SecIdBase, 
+    SecondaryId, WhoStudyFeature};
 use std::sync::LazyLock;
 use regex::Regex;
 use std::collections::HashSet;
@@ -30,7 +31,6 @@ pub fn get_source_id(sd_sid: &String) -> i32 {
     }
 }
 
-
 pub fn get_db_name (source_id: i32) -> String {
     let db_name = match source_id {
         100120 => "ctg",
@@ -59,15 +59,16 @@ pub fn get_db_name (source_id: i32) -> String {
 }
 
 
-pub fn get_type(study_type: &Option<String>) -> String {
+pub fn get_type(study_type: &Option<String>) -> i32 {
     
     if study_type.is_some() 
     {
+        let ts: &str;
         let t = study_type.clone().unwrap().to_lowercase();
         if t.starts_with("intervention")
             || t == "BA/BE"
         {
-            "Interventional".to_string()
+            ts = "Interventional";
         }
         else if t.starts_with("observation")
               || t.starts_with("epidem")
@@ -78,18 +79,18 @@ pub fn get_type(study_type: &Option<String>) -> String {
               || t == "Health Services Research"
               || t == "Health services reaserch"
         {
-            "Observational".to_string()
+            ts = "Observational";
         }
         else if t == "Expanded Access"
         {
-            "Expanded Access".to_string()
+            ts = "Expanded Access";
         }
         else if t == "Diagnostic test"
         {
-            "Diagnostic test".to_string()
+            ts = "Diagnostic test";
         }
         else if t == "Not Specified" || t == "N/A" {
-            "Not provided".to_string()
+            ts = "Not provided";
         }
         else if t  ==  "Other" 
              || t  == "Others,meta-analysis etc" 
@@ -98,25 +99,36 @@ pub fn get_type(study_type: &Option<String>) -> String {
              || t  == "Screening"
              || t == "Treatment study"
         {
-                "Other".to_string()
+            ts = "Other";
         }
         else  
         {
             //stype == "Not Specified" || stype == "N/A" 
-            "Not provided".to_string()
-            
+            ts = "Not provided";
+        }
+
+        match ts {
+            "Interventional" => 11, 
+            "Observational" => 12,
+            "Expanded Access" => 14,
+            "Funded programme" => 20,
+            "Observational patient registry" => 22,
+            "Diagnostic test" => 24,
+            "Other" => 99,
+            "Not provided" => 0,
+            _ => 99
         }
     }
     else {
-        "Not provided".to_string()
+        0
     }
 }
 
 
-pub fn get_status(status: &Option<String>) -> String {
+pub fn get_status(status: &Option<String>) -> i32 {
 
     if status.is_some() {
-
+        let ss: &str;
         let s = status.clone().unwrap().to_lowercase();
         if s.len() > 5  {
             if s == "complete" || s == "completed" 
@@ -124,7 +136,7 @@ pub fn get_status(status: &Option<String>) -> String {
                 || s == "data analysis completed" || s == "main results already published"
                 || s == "approved for marketing"
             {
-                "Completed".to_string()
+                ss = "Completed";
             }
             else if s == "complete: follow-up continuing" 
                 || s == "complete: follow up continuing" || s == "active, not recruiting" 
@@ -133,63 +145,78 @@ pub fn get_status(status: &Option<String>) -> String {
                 || s == "enrollment closed"
                 || s == "recruiting stopped after recruiting started"
             {
-                "Active, not recruiting".to_string()
+                ss = "No longer recruiting";
             }
             else if s == "recruiting" || s =="open public recruiting" 
             || s == "open to recruitment" || s =="in enrollment"
             {
-                "Recruiting".to_string()
+                ss = "Recruiting";
             }
             else if s.contains("pending")
                 || s == "not yet recruiting"
                 || s == "without startig enrollment"
                 || s == "preinitiation"
             {
-                "Not yet recruiting".to_string()
+                ss = "Not yet recruiting";
             }
             else if s.contains("suspended")
                 || s.contains("temporarily closed")
                 || s == "temporary halt"
                 || s == "temporarily not available"
             {
-                "Suspended".to_string()
+                ss = "Suspended";
             }
             else if s.contains("terminated")
                 || s.contains("stopped early")
                 || s == "stopped"
             {
-                "Terminated".to_string()
+                ss = "Terminated";
             }
             else if s.contains("withdrawn")
             {
-                "Withdrawn".to_string()
+                ss = "Withdrawn";
             }
             else if s.contains("enrolling by invitation")
             {
-                "Enrolling by invitation".to_string()
+                ss = "Enrolling by invitation";
             }
             else if s == "ongoing" 
                     || s == "authorised-recruitment may be ongoing or finished" 
                     || s == "available"
             {
-                "Ongoing, recruitment status unclear".to_string()
+                ss = "Ongoing, recruitment status unclear";
             }
             else if s == "not applicable" {
-                "Recorded as not applicable".to_string()
+                ss = "Recorded as not applicable";
             }
             else
             {
                 // = withheld, or = unknown, or = no longer available
                 // or = deleted from source registry, or = unknown status
-                "Not provided".to_string()
+                ss = "Not provided";
             }
         }
         else {
-            "Not provided".to_string()
+            ss = "Not provided";
         }
-    }
+
+        match ss {
+            "Not yet recruiting"=> 10,
+            "Withdrawn"=> 12,
+            "Recruiting"=> 14,
+            "Enrolling by invitation"=> 16,
+            "No longer recruiting" => 18,
+            "Ongoing, recruitment status unclear"=> 20,            
+            "Suspended"=> 25,
+            "Completed" => 30,
+            "Terminated"=> 32,
+            "Recorded as not applicable"=> 99,
+            "Not provided"=> 0,
+            _ => 0
+           }
+        }
     else {
-        "Not provided".to_string()
+        0
     }
 }
 
@@ -373,7 +400,6 @@ fn add_country_name(new_name:&str, out_strings: &Vec::<String>) -> bool {
         add_string 
     }
 }
-
 
 
 pub fn add_eu_design_features(design: &String) -> Vec<WhoStudyFeature> {
@@ -797,6 +823,9 @@ pub fn add_phase_features(phase: &String) -> Vec<WhoStudyFeature>
                             sid = contains_nl(sec_id);
                             if sid.is_none() {
                                 sid = contains_ntr(sec_id);
+                                if sid.is_none() {
+                                    sid = contains_rpuec(sec_id);
+                                }
                             }
                         }
                     }
@@ -824,7 +853,6 @@ pub fn add_phase_features(phase: &String) -> Vec<WhoStudyFeature>
             _ if upid.starts_with("RBR") => 100117, 
             _ if upid.starts_with("RPCEC") => 100122,
             _ if upid.starts_with("PACTR") => 100128,
-            _ if upid.starts_with("PER") =>  100129,
             _ if upid.starts_with("SLCTR") => 100130,
             _ if upid.starts_with("TCTR") => 100131,
             _ if upid.starts_with("LBCTR") => 101989,
@@ -886,19 +914,26 @@ pub fn add_phase_features(phase: &String) -> Vec<WhoStudyFeature>
     }
 
     fn contains_euctr(hay: &str) -> Option<SecIdBase> {
-        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[0-9]{4}-[0-9]{6}-[0-9]{2}-").unwrap());
-        match RE.captures(hay) {
-            Some(s) => {
-                let id = &s[0];
-                let processed_id = format!("EUCTR{}", &id[0..14]);
-                Some(SecIdBase{
-                    processed_id: processed_id.to_string(),
-                    sec_id_source: 100123, 
-                    sec_id_type_id: 11,
-                    sec_id_type: "Trial Registry ID".to_string(),
-                })
-            },
-            None => None,
+        static RE1: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[0-9]{4}-[0-9]{6}-[0-9]{2}-").unwrap());
+        static RE2: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[0-9]{4}-[0-9]{6}-[0-9]{2}$").unwrap());
+        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[0-9]{4}-[0-9]{6}-[0-9]{2}").unwrap());
+        if RE1.is_match(hay) || RE2.is_match(hay) {
+            match RE.captures(hay) {
+                Some(s) => {
+                    let id = &s[0];
+                    let processed_id = format!("EUCTR{}", &id[0..14]);
+                    Some(SecIdBase{
+                        processed_id: processed_id.to_string(),
+                        sec_id_source: 100123, 
+                        sec_id_type_id: 11,
+                        sec_id_type: "Trial Registry ID".to_string(),
+                    })
+                },
+                None => None,
+            }
+        }
+        else {
+            None
         }
     }
 
@@ -1109,6 +1144,24 @@ pub fn add_phase_features(phase: &String) -> Vec<WhoStudyFeature>
             None => None,
         }
     }
+
+
+    fn contains_rpuec(hay: &str) -> Option<SecIdBase> {
+        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^PER-[0-9]{3}-").unwrap());
+        match RE.captures(hay) {
+            Some(s) => {
+                let id = &s[0];
+                Some(SecIdBase{
+                    processed_id: id.to_string(),
+                    sec_id_source: 100129, 
+                    sec_id_type_id: 11,
+                    sec_id_type: "Trial Registry ID".to_string(),
+                })
+            },
+            None => None,
+        }
+    }
+
 
     fn contains_anvisa(hay: &str) -> Option<SecIdBase> {
         if hay.starts_with("RBR") {

@@ -86,15 +86,14 @@ pub async fn download(args: Vec<OsString>) -> Result<(), AppError> {
             // Processing of a full data download (20+ files) (was type 103).
             
             let source_folder = params.csv_full_path;
-            let file_num = params.full_file_num;
+            let file_num = params.full_file_num + 1;
             let file_stem = params.full_file_stem;
 
             for i in 1..file_num {
-                let file_name = file_stem.clone() + &(format!("{:0>3}", i));
+                let file_name = file_stem.clone() + &(format!("{:0>3}", i) + ".csv");
                 let file_path: PathBuf = [&source_folder, &PathBuf:: from(file_name)].iter().collect();
-                // let res = who::process_single_file(&file_path, &json_path, dl_id, &pool).await?;
-                // dl_res = dl_res.add(res);
-                println!("{:?}", file_path);
+                let res = who::process_single_file(&file_path, &json_path, dl_id, &mon_pool, &src_pool).await?;
+                dl_res = dl_res.add(res);
             }
         },
 
@@ -105,9 +104,10 @@ pub async fn download(args: Vec<OsString>) -> Result<(), AppError> {
 
             let file_name = params.target;
             let file_path: PathBuf = [source_folder, PathBuf:: from(file_name)].iter().collect();
-            dl_res = who::process_single_file(&file_path, &json_path, dl_id, &mon_pool).await?;
+            dl_res = who::process_single_file(&file_path, &json_path, dl_id, &mon_pool, &src_pool).await?;
         },
-
+        
+        /* 
         551 => {
 
             // Default - processing of stored WHO csv files not yet processed (was type 113).
@@ -156,14 +156,14 @@ pub async fn download(args: Vec<OsString>) -> Result<(), AppError> {
             who::store_single_file(&file_path, &src_pool).await?;
         },
 
-
+    */
         _ => {
 
             // shouldn't do anything except report weird dl type code
              
         }
     }
-    
+
     // Update dl event record with res details
 
     update_dl_event_record (dl_id, params.dl_type, dl_res, &mon_pool).await?;

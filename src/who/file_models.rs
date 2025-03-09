@@ -459,7 +459,7 @@ NULL,
 pub struct WHORecord
 {
     pub source_id: i32, 
-    pub record_date: String,
+    pub record_date: Option<String>,
     pub sd_sid: String, 
     pub pub_title: Option<String>,
     pub scientific_title: Option<String>,
@@ -472,8 +472,10 @@ pub struct WHORecord
     pub scientific_contact_familyname: Option<String>,
     pub scientific_contact_email: Option<String>,
     pub scientific_contact_affiliation: Option<String>,
-    pub study_type: String,
-    pub study_status: String,
+    pub study_type_orig: Option<String>,
+    pub study_type: i32,
+    pub study_status_orig: Option<String>,
+    pub study_status: i32,
     pub date_registration: Option<String>,
     pub date_enrolment: Option<String>,
     pub target_size: Option<String>,
@@ -517,7 +519,7 @@ pub struct WHORecord
     pub meddra_condition_list: Option<Vec<MeddraCondition>>,
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize)]
 #[allow(dead_code)]
 pub struct SecondaryId
 {
@@ -555,6 +557,17 @@ impl SecondaryId {
             sec_id_type_id: sid.sec_id_type_id,
             sec_id_type: sid.sec_id_type,
          }
+    }
+
+    pub fn clone(&self) -> SecondaryId {
+        SecondaryId {
+            source_field: self.source_field.clone(),
+            sec_id: self.sec_id.clone(),
+            processed_id: self.processed_id.clone(),
+            sec_id_source: self.sec_id_source,
+            sec_id_type_id: self.sec_id_type_id,
+            sec_id_type: self.sec_id_type.clone(),
+        }
     }
     
 }
@@ -640,20 +653,18 @@ impl MeddraCondition {
 
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct WHOSummary
 {
     pub source_id: i32, 
     pub sd_sid: String, 
     pub title: Option<String>,
     pub remote_url: Option<String>,
-    pub study_type: String,
-    pub study_status: String,
-    pub reg_year: Option<i32>,
-    pub reg_month: Option<i32>,
-    pub reg_day: Option<i32>,
-    pub enrol_year: Option<i32>,
-    pub enrol_month: Option<i32>,
-    pub enrol_day: Option<i32>,
+    pub study_type: i32,
+    pub study_status: i32,
+    pub secondary_ids: Option<Vec<SecondaryId>>,
+    pub date_registration: Option<String>,
+    pub date_enrolment: Option<String>,
     pub results_yes_no: Option<String>,
     pub results_url_link: Option<String>,
     pub results_url_protocol: Option<String>,
@@ -664,4 +675,3 @@ pub struct WHOSummary
     pub country_list: Option<Vec<String>>,
     pub date_last_rev: Option<NaiveDate>,
 }
-
