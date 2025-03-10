@@ -20,11 +20,11 @@ pub async fn update_who_study_mon(db_name: &String, sd_sid: &String, remote_url:
             // Row already exists - update with new details.
            
             let sql = "Update mon.".to_string() + db_name + r#" set 
-                        remote_url = $1,
-                        last_revised = $2,
+                        remote_src_url = $1,
+                        last_who_revised = $2,
                         local_path = $3,
-                        last_dl_id = $4,
-                        last_downloaded = $5
+                        last_who_dl_id = $4,
+                        last_who_downloaded = $5
                         where sd_sid = $6;"#;
             sqlx::query(&sql).bind(remote_url).bind(record_date).bind(local_path) 
                     .bind(dl_id).bind(now).bind(sd_sid).execute(pool).await
@@ -34,8 +34,8 @@ pub async fn update_who_study_mon(db_name: &String, sd_sid: &String, remote_url:
             
             // Create as a new record.
             
-            let sql = "Insert into mon.".to_string() + db_name + r#"(sd_sid, remote_url, last_revised,
-	                    local_path, last_dl_id, last_downloaded) values ($1, $2, $3, $4, $5, $6)"#;
+            let sql = "Insert into mon.".to_string() + db_name + r#"(sd_sid, remote_src_url, last_who_revised,
+	                    local_path, last_who_dl_id, last_who_downloaded) values ($1, $2, $3, $4, $5, $6)"#;
             sqlx::query(&sql).bind(sd_sid).bind(remote_url).bind(record_date)    
             .bind(local_path).bind(dl_id).bind(now).execute(pool).await
                     .map_err(|e| AppError::SqlxError(e, sql))?;     
@@ -83,7 +83,7 @@ pub async fn add_new_single_file_record(dl_id: i32, file_path: &PathBuf, file_re
 
     let source_path = file_path.to_str().unwrap().replace("\\\\", "/").replace("\\", "/");     // assumes utf-8 characters
     let date_dl = Utc::now().date_naive();
-    let sql = r#"Insert into evs.who_file_dls(dl_id, file_path, date_dl, 
+    let sql = r#"Insert into der.who_file_dls(dl_id, file_path, date_dl, 
                 num_checked, num_downloaded, num_added) 
                 values($1, $2, $3, $4, $5, $6)"#;
     let res = sqlx::query(sql).bind(dl_id).bind(source_path).bind(date_dl)

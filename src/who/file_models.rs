@@ -507,7 +507,6 @@ pub struct WHORecord
     pub ipd_description: Option<String>,
     pub results_date_completed: Option<String>,
     pub results_yes_no: Option<String>,
-    pub db_name: String,
 
     pub design_string: Option<String>,
     pub phase_string: Option<String>,

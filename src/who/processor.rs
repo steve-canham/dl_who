@@ -15,8 +15,8 @@ use super::gen_helper::{StringExtensions, DateExtensions};
 use super::file_models::{WHOLine, WHORecord, WhoStudyFeature, SecondaryId, WHOSummary, MeddraCondition};
 
 
-pub fn process_line(w: WHOLine,source_id: i32, sid: String, study_type: i32, study_status: i32, 
-                    remote_url:Option<String>, study_idents: Option<Vec<SecondaryId>>, countries: Option<Vec<String>>) -> Option<WHORecord>  {
+pub fn process_line(w: WHOLine,source_id: i32, sid: &String, study_type: i32, study_status: i32, 
+                    remote_url:&Option<String>, study_idents: Option<Vec<SecondaryId>>, countries: Option<Vec<String>>) -> Option<WHORecord>  {
 
     let design_list = w.study_design.tidy();
     let design_orig = design_list.clone();
@@ -299,10 +299,10 @@ pub fn process_line(w: WHOLine,source_id: i32, sid: String, study_type: i32, stu
     Some(WHORecord  {
         source_id: source_id, 
         record_date: w.last_updated.as_iso_date(),
-        sd_sid: sid, 
+        sd_sid: sid.clone(), 
         pub_title: w.pub_title.replace_unicodes(),
         scientific_title: w.scientific_title.replace_unicodes(),
-        remote_url: remote_url,
+        remote_url: remote_url.clone(),
         pub_contact_givenname: w.pub_contact_first_name.tidy(),
         pub_contact_familyname: w.pub_contact_last_name.tidy(),
         pub_contact_email: w.pub_contact_email.tidy(),
@@ -346,11 +346,8 @@ pub fn process_line(w: WHOLine,source_id: i32, sid: String, study_type: i32, stu
         ipd_description:ipd_description,
         results_date_completed: w.results_date_completed.as_iso_date(),
         results_yes_no: w.results_yes_no.tidy(),
-        db_name: get_db_name(source_id),
-
         design_string: design_orig,
         phase_string: phase_orig,
-
         country_list: countries,
         secondary_ids: study_idents,
         study_features: study_features,
