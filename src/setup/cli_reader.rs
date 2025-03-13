@@ -7,6 +7,7 @@ use std::path::PathBuf;
 pub struct CliPars {
     pub dl_type: i32,
     pub target_file: String,
+    pub doing_agg_only: bool,
 }
 
 pub fn fetch_valid_arguments(args: Vec<OsString>) -> Result<CliPars, AppError>
@@ -19,10 +20,12 @@ pub fn fetch_valid_arguments(args: Vec<OsString>) -> Result<CliPars, AppError>
     let dl_type: i32 = dl_type_as_string.parse().unwrap_or_else(|_| 0);
 
     let target_file = parse_result.get_one::<String>("file").unwrap();
+    let a_flag = parse_result.get_flag("a_flag");
 
     Ok(CliPars {
         dl_type: dl_type,
         target_file: target_file.clone(),
+        doing_agg_only: a_flag,
     }) 
 }
 
@@ -37,15 +40,16 @@ pub fn config_file_exists()-> bool {
     res
 }
 
-
+/* 
 pub fn get_initalising_cli_pars() -> CliPars {
     
     CliPars {
         dl_type: 501,
         target_file: "".to_string(),
+        agg_data: false,
     }
 }
-
+*/
 
 fn parse_args(args: Vec<OsString>) -> Result<ArgMatches, clap::Error> {
 
@@ -66,8 +70,15 @@ fn parse_args(args: Vec<OsString>) -> Result<ArgMatches, clap::Error> {
            .help("A string with the target file name")
            .default_value("")
         )
+        .arg(
+            Arg::new("a_flag")
+           .short('a')
+           .long("agg")
+           .required(false)
+           .help("A flag signifying database data needs to be integrated")
+           .action(clap::ArgAction::SetTrue)
+        )
     .try_get_matches_from(args)
-
 }
 
 

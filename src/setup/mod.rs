@@ -37,6 +37,7 @@ pub struct InitParams {
     pub csv_full_path: PathBuf,
     pub json_data_path: PathBuf,
     pub log_folder_path: PathBuf,
+    pub doing_agg_only: bool,
 }
 
 pub static LOG_RUNNING: OnceLock<bool> = OnceLock::new();
@@ -51,126 +52,147 @@ pub fn get_params(cli_pars: CliPars, config_string: &String) -> Result<InitParam
     let empty_pb = PathBuf::from("");
     let empty_str = "".to_string();
     
-    let dl_type = cli_pars.dl_type;
-    let mut target = cli_pars.target_file;
+    if cli_pars.doing_agg_only {
 
-    let full_file_stem = data_pars.full_file_stem;
-    let full_file_num = data_pars.full_file_num;
-    let last_file_imported = data_pars.last_file_imported;
-    let csv_data_path = folder_pars.csv_data_path;
-    let csv_full_path = folder_pars.csv_full_path;
+        // File related parameters become irrelevant
 
-    let json_data_path = folder_pars.json_data_path;  // already checked as present
-    if !folder_exists(&json_data_path) {
-        fs::create_dir_all(&json_data_path)?;
-    }
+        Ok(InitParams {
+            dl_type: 0,
+            full_file_stem: "".to_string(),
+            full_file_num: 0,
+            last_file_imported: "".to_string(),
+            target: "".to_string(),
+            csv_data_path: empty_pb.clone(),
+            csv_full_path: empty_pb.clone(),
+            json_data_path: empty_pb.clone(),
+            log_folder_path: empty_pb.clone(),
+            doing_agg_only: cli_pars.doing_agg_only,
 
-    let log_folder_path = folder_pars.log_folder_path;  // already checked as present
-    if !folder_exists(&log_folder_path) {
-        fs::create_dir_all(&log_folder_path)?;
-    }
-       
-    if target == empty_str {   // from CLI in the first instance
-            target = data_pars.target_file;  // otherwise use the config file
-    }
-
-    if dl_type == 501 {
-        
-        // DEFAULT download for WHO data
-        // To process any files in the data folder not yet processed, in the correct order
-
-        // Needs csv_data_path to exist (<> "")  
-
-        if csv_data_path == empty_pb  { 
-            return Result::Err(AppError::MissingProgramParameter("csv_data_path".to_string()));
-        }
-        if !folder_exists(&csv_data_path) {
-            return Result::Err(AppError::FileSystemError(
-                       "Unable to find designated csv source data folder".to_string(), 
-                       format!("Path provided was {:?}", csv_data_path)));
-        }
-
-        // Needs last_file_imported to exist (<> "")
-
-        if last_file_imported == empty_str  { 
-            return Result::Err(AppError::MissingProgramParameter("csv_data_path".to_string()));
-        }
-        
-        // The processing needs to get the files from examining the folder - does not need explicit targets at this stage
-        // to identify files not yet downloaded and dated after the last file downloaded date, ordered by date
-        // errors on accessing the individual file paths will need to be dealt with there...
+        })
 
     }
+    else {
 
-    if dl_type == 502 {
+        let dl_type = cli_pars.dl_type;
+        let mut target = cli_pars.target_file;
+
+        let full_file_stem = data_pars.full_file_stem;
+        let full_file_num = data_pars.full_file_num;
+        let last_file_imported = data_pars.last_file_imported;
+        let csv_data_path = folder_pars.csv_data_path;
+        let csv_full_path = folder_pars.csv_full_path;
+
+        let json_data_path = folder_pars.json_data_path;  // already checked as present
+        if !folder_exists(&json_data_path) {
+            fs::create_dir_all(&json_data_path)?;
+        }
+
+        let log_folder_path = folder_pars.log_folder_path;  // already checked as present
+        if !folder_exists(&log_folder_path) {
+            fs::create_dir_all(&log_folder_path)?;
+        }
         
-        // Use full data download 
-        // To process files in the full data folder in the correct order
-
-        // need csv_full_path to exist (<> "")  
-        
-        if csv_full_path == empty_pb  { 
-            return Result::Err(AppError::MissingProgramParameter("csv_full_path".to_string()));
-        }
-        if !folder_exists(&csv_full_path) {
-            return Result::Err(AppError::FileSystemError(
-                       "Unable to find designated full download data folder".to_string(), 
-                       format!("Path provided was {:?}", csv_full_path)));
+        if target == empty_str {   // from CLI in the first instance
+                target = data_pars.target_file;  // otherwise use the config file
         }
 
-        // need full_file_stem to exist (but this has a default)
-        // need full_file_num to exist  (is > 0)
+        if dl_type == 501 {
+            
+            // DEFAULT download for WHO data
+            // To process any files in the data folder not yet processed, in the correct order
 
-        if full_file_num == 0  { 
-            return Result::Err(AppError::MissingProgramParameter("full_file_num".to_string()));
+            // Needs csv_data_path to exist (<> "")  
+
+            if csv_data_path == empty_pb  { 
+                return Result::Err(AppError::MissingProgramParameter("csv_data_path".to_string()));
+            }
+            if !folder_exists(&csv_data_path) {
+                return Result::Err(AppError::FileSystemError(
+                        "Unable to find designated csv source data folder".to_string(), 
+                        format!("Path provided was {:?}", csv_data_path)));
+            }
+
+            // Needs last_file_imported to exist (<> "")
+
+            if last_file_imported == empty_str  { 
+                return Result::Err(AppError::MissingProgramParameter("csv_data_path".to_string()));
+            }
+            
+            // The processing needs to get the files from examining the folder - does not need explicit targets at this stage
+            // to identify files not yet downloaded and dated after the last file downloaded date, ordered by date
+            // errors on accessing the individual file paths will need to be dealt with there...
+
+        }
+
+        if dl_type == 502 {
+            
+            // Use full data download 
+            // To process files in the full data folder in the correct order
+
+            // need csv_full_path to exist (<> "")  
+            
+            if csv_full_path == empty_pb  { 
+                return Result::Err(AppError::MissingProgramParameter("csv_full_path".to_string()));
+            }
+            if !folder_exists(&csv_full_path) {
+                return Result::Err(AppError::FileSystemError(
+                        "Unable to find designated full download data folder".to_string(), 
+                        format!("Path provided was {:?}", csv_full_path)));
+            }
+
+            // need full_file_stem to exist (but this has a default)
+            // need full_file_num to exist  (is > 0)
+
+            if full_file_num == 0  { 
+                return Result::Err(AppError::MissingProgramParameter("full_file_num".to_string()));
+            }
+
+
+            // The processing could get the files from a loop - does not need explicit targets at this stage
+            // errors on accessing the individual file paths will need to be dealt with there...
+
         }
 
 
-        // The processing could get the files from a loop - does not need explicit targets at this stage
-        // errors on accessing the individual file paths will need to be dealt with there...
+        if dl_type == 503 {
+            
+            // Single file download 
+            // To process the designated target file only
 
+            // Needs csv_data_path to exist (<> "")  
+
+            if csv_data_path == empty_pb  { 
+                return Result::Err(AppError::MissingProgramParameter("csv_data_path".to_string()));
+            }
+            if !folder_exists(&csv_data_path) {
+                return Result::Err(AppError::FileSystemError(
+                        "Unable to find designated csv source data folder".to_string(), 
+                        format!("Path provided was {:?}", csv_data_path)));
+            }
+
+            // Needs a target file from either the CLI or the config file
+
+            if target == empty_str {   // still
+                return Result::Err(AppError::MissingProgramParameter("target file".to_string()));
+            }
+            
+        }
+
+        Ok(InitParams {
+            dl_type,
+            full_file_stem,
+            full_file_num,
+            last_file_imported: last_file_imported,
+            target: target,
+            csv_data_path: csv_data_path,
+            csv_full_path: csv_full_path,
+            json_data_path: json_data_path,
+            log_folder_path: log_folder_path,
+            doing_agg_only: cli_pars.doing_agg_only,
+
+        })
     }
-
-
-    if dl_type == 503 {
-        
-        // Single file download 
-        // To process the designated target file only
-
-        // Needs csv_data_path to exist (<> "")  
-
-        if csv_data_path == empty_pb  { 
-            return Result::Err(AppError::MissingProgramParameter("csv_data_path".to_string()));
-        }
-        if !folder_exists(&csv_data_path) {
-            return Result::Err(AppError::FileSystemError(
-                       "Unable to find designated csv source data folder".to_string(), 
-                       format!("Path provided was {:?}", csv_data_path)));
-        }
-
-        // Needs a target file from either the CLI or the config file
-
-        if target == empty_str {   // still
-            return Result::Err(AppError::MissingProgramParameter("target file".to_string()));
-        }
-        
-    }
-
-
-    Ok(InitParams {
-        dl_type,
-        full_file_stem,
-        full_file_num,
-        last_file_imported: last_file_imported,
-        target: target,
-        csv_data_path: csv_data_path,
-        csv_full_path: csv_full_path,
-        json_data_path: json_data_path,
-        log_folder_path: log_folder_path,
-    })
-
 }
-
 
 fn folder_exists(folder_name: &PathBuf) -> bool {
     let res = match folder_name.try_exists() {
