@@ -106,14 +106,17 @@ pub fn get_type(study_type: &Option<String>) -> i32 {
             //stype == "Not Specified" || stype == "N/A" 
             ts = "Not provided";
         }
+        
+        // Other changed from 16 to 99
+        // Diagnostic test added
 
         match ts {
             "Interventional" => 11, 
             "Observational" => 12,
+            "Observational patient registry" => 13,
             "Expanded Access" => 14,
-            "Funded programme" => 20,
-            "Observational patient registry" => 22,
-            "Diagnostic test" => 24,
+            "Funded programme" => 15,
+            "Diagnostic test" => 16,
             "Other" => 99,
             "Not provided" => 0,
             _ => 99
@@ -123,7 +126,6 @@ pub fn get_type(study_type: &Option<String>) -> i32 {
         0
     }
 }
-
 
 pub fn get_status(status: &Option<String>) -> i32 {
 
@@ -191,8 +193,9 @@ pub fn get_status(status: &Option<String>) -> i32 {
             }
             else
             {
-                // = withheld, or = unknown, or = no longer available
-                // or = deleted from source registry, or = unknown status
+                // = 'withheld', or = 'unknown', or = 'no longer available'
+                // or = 'deleted from source registry', or = 'unknown status'
+                // or 'temporarily not available'
                 ss = "Not provided";
             }
         }
