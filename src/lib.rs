@@ -82,7 +82,7 @@ pub async fn download(args: Vec<OsString>) -> Result<(), AppError> {
                 if files_to_process.len() > 0 {
                     for f in files_to_process {
                         let file_path: PathBuf = [&source_folder, &PathBuf:: from(f)].iter().collect();
-                        let res = download::process_single_file(&file_path, &json_path, dl_id, &mon_pool, &src_pool).await?;
+                        let res = download::process_single_file(&file_path, &json_path, dl_id, &src_pool).await?;
                         dl_res = dl_res.add(res);
                     }
                 }
@@ -98,7 +98,7 @@ pub async fn download(args: Vec<OsString>) -> Result<(), AppError> {
                 for i in 4..file_num {
                     let file_name = file_stem.clone() + &(format!("{:0>3}", i) + ".csv");
                     let file_path: PathBuf = [&source_folder, &PathBuf:: from(file_name)].iter().collect();
-                    let res = download::process_single_file(&file_path, &json_path, dl_id, &mon_pool, &src_pool).await?;
+                    let res = download::process_single_file(&file_path, &json_path, dl_id, &src_pool).await?;
                     dl_res = dl_res.add(res);
                 }
             },
@@ -109,7 +109,7 @@ pub async fn download(args: Vec<OsString>) -> Result<(), AppError> {
                 let source_folder = params.csv_data_path;
                 let file_name = params.target;
                 let file_path: PathBuf = [source_folder, PathBuf:: from(file_name)].iter().collect();
-                dl_res = download::process_single_file(&file_path, &json_path, dl_id, &mon_pool, &src_pool).await?;
+                dl_res = download::process_single_file(&file_path, &json_path, dl_id, &src_pool).await?;
             },
             
             _ => {    // shouldn't do anything except report weird dl type code

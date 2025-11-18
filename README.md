@@ -1,10 +1,12 @@
 N.B. STILL IN RELATIVELY EARLY STAGES OF DEVELOPMENT
 
 <h2>Introduction</h2>
-A program intended to run on a scheduled (weekly) basis, that takes CSV files obtained from the WHO ICTRP site and processes them to create:<br/> 
+A program that was intended to run on a scheduled (weekly) basis, taking CSV files obtained from the WHO ICTRP site**** and processes them to create:<br/> 
 a) For each trial registry source, an updated summary table of studies, as downloaded so far.<br/> 
 b) For most sources (current exceptions are CTG and IRSCTN) creates a .json file containing the major components of the WHO dataset, storing that within a registry specific folder.<br/> 
 Existing study records, and / or json files, are simply over-written by new data.
+<br/><br/>
+**** But the WHO site no longer make this data freely available, so progress on this system stalled, or limited to historical data (Feb 2025 is the latest) ****<br/><br/>
 
 It has two main functions. 
 <ul>
@@ -54,7 +56,7 @@ where: <br/>
 <i>full_file_stem</i> is the stem of the file names in a full file download. The stem will be suffixed by a number, as they are generated in sequence by a small PowerShell script (see below). The program in DL type 502 runs through each of the files in sequence, combining the file name in each case with the folder name where the files are stopred (from csv_full_path). <br/> 
 <i>full_file_num</i> indicates the total number of files generated from the full download WHO file, and thus the limit of the processing loop in DL mode 502. <br/> 
 <i>last_file_imported</i> gives the name of the csv file that the system last processed. This acts as the comparison point when finding newer files, in the default 501 mode. <br/> 
-<i>target_file</i> gives the name of the specific target file whern operating in DL 503 mode, i.e. processing a single file. This file can also be specified - and usually is - as a command line parameter after the '-f' flag.
+<i>target_file</i> gives the name of the specific target file when operating in DL 503 mode, i.e. processing a single file. This file can also be specified - and usually is - as a command line parameter after the '-f' flag.
 
 <i>csv_data_path</i> is the folder path where the 'routine', i.e. weekly update, WHO csv files are to be found.<br/> 
 <i>csv_full_path</i> is the folder path where the collection of files generated from a full download are to be found.<br/> 
@@ -79,6 +81,6 @@ b) For full downloads: <br/>
 4) Each file has the name stem provided by the script - the same as the one in the full_file_stem parameter in the config file. The config fiile should be updated to ensure the correct entries for csv_full_path, full_file_stem and full_file_num.<br/>
 5) The file(s) can then be processd by running against -t 502.<br/>
 <br/>
-The download script is included in the code in the utilities folder, for convenience. The easiest way to apply it is to open a PowerShell ISE and load it, modifying it if necessary, and run it from there. As PowerShell it is Windows specific but should be readily adapted to an equivalent bash script if required.
+The download script is included in the code in the utilities folder, for convenience. Powershell runs on both Windows and Linux.
 <br/>
 N.B. STILL IN RELATIVELY EARLY STAGES OF DEVELOPMENT

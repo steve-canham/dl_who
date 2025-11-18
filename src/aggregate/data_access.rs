@@ -75,6 +75,9 @@ pub async fn set_up_reg_summ_tables(pool: &Pool<Postgres>) -> Result<(), AppErro
         , num int4
     );"#;
 
+    sqlx::raw_sql(&sql).execute(pool)
+            .await.map_err(|e| AppError::SqlxError(e, sql.to_string()))?;
+
     Ok(())
 }
 

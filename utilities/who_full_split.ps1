@@ -8,8 +8,14 @@ $sw.Start()
 # The last part of this path represents the file name stem for the generated files.
 # Examples are as below.
 
-$filename = "E:/MDR source data/WHO/data/Full export 2025-02/ICTRP-full-1074705.csv"
-$rootName = "E:/MDR source data/WHO/data/Full export 2025-02/ICTRPFullExport "
+# Old Windows paths
+#$filename = "E:/MDR source data/WHO/data/Full export 2025-02/ICTRP-full-1074705.csv"
+#$rootName = "E:/MDR source data/WHO/data/Full export 2025-02/ICTRPFullExport "
+
+#Linux paths
+$filename = "/home/steve/Data/MDR source data/WHO/data/Full export 2025-02/ICTRP-full-1074705.csv"
+$rootName = "/home/steve/Data/MDR source data/WHO/data/Full export 2025-02/ICTRPFullExport"
+
 $ext = "csv"
 
 $linesperFile = 50000  #50k

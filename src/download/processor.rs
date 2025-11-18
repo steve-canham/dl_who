@@ -11,8 +11,10 @@ use super::gen_helper::{StringExtensions, DateExtensions};
 use super::file_models::{WHOLine, WHORecord, WhoStudyFeature, SecondaryId, WHOSummary, MeddraCondition};
 
 
-pub fn process_line(w: WHOLine,source_id: i32, sid: &String, study_type: i32, study_status: i32, 
-                    remote_url:&Option<String>, study_idents: Option<Vec<SecondaryId>>, countries: Option<Vec<String>>) -> Option<WHORecord>  {
+pub fn process_line(w: WHOLine, summ: &WHOSummary) -> Option<WHORecord>  {
+
+    let source_id = summ.source_id;
+    let study_type = summ.study_type;
 
     let design_list = w.study_design.tidy();
     let design_orig = design_list.clone();
@@ -86,7 +88,6 @@ pub fn process_line(w: WHOLine,source_id: i32, sid: &String, study_type: i32, st
         0 => None,
         _ => Some(features)
     };
-
 
 
     let mut agemin = w.age_min.tidy();
@@ -295,10 +296,10 @@ pub fn process_line(w: WHOLine,source_id: i32, sid: &String, study_type: i32, st
     Some(WHORecord  {
         source_id: source_id, 
         record_date: w.last_updated.as_iso_date(),
-        sd_sid: sid.clone(), 
+        sd_sid: summ.sd_sid.clone(), 
         pub_title: w.pub_title.replace_unicodes(),
         scientific_title: w.scientific_title.replace_unicodes(),
-        remote_url: remote_url.clone(),
+        remote_url: summ.remote_url.clone(),
         pub_contact_givenname: w.pub_contact_first_name.tidy(),
         pub_contact_familyname: w.pub_contact_last_name.tidy(),
         pub_contact_email: w.pub_contact_email.tidy(),
@@ -308,12 +309,12 @@ pub fn process_line(w: WHOLine,source_id: i32, sid: &String, study_type: i32, st
         scientific_contact_email: w.sci_contact_email.tidy(),
         scientific_contact_affiliation: w.sci_contact_affiliation.tidy(),
         study_type_orig: w.study_type.tidy(),
-        study_type: study_type,
+        study_type: summ.study_type,
         date_registration: w.date_registration.as_iso_date(),
         date_enrolment: w.date_enrollement.as_iso_date(),
         target_size: w.target_size.tidy(),
         study_status_orig: w.recruitment_status.tidy(),
-        study_status: study_status,
+        study_status: summ.study_status,
         primary_sponsor: w.primary_sponsor.tidy(),
         secondary_sponsors: w.secondary_sponsors.tidy(),
         source_support: w.source_support.tidy(),
@@ -344,8 +345,8 @@ pub fn process_line(w: WHOLine,source_id: i32, sid: &String, study_type: i32, st
         results_yes_no: w.results_yes_no.tidy(),
         design_string: design_orig,
         phase_string: phase_orig,
-        country_list: countries,
-        secondary_ids: study_idents,
+        country_list: summ.country_list.to_owned(),
+        secondary_ids: summ.secondary_ids.to_owned(),
         study_features: study_features,
         condition_list: conditions_option,
         meddra_condition_list: meddraconds_option,
@@ -353,27 +354,27 @@ pub fn process_line(w: WHOLine,source_id: i32, sid: &String, study_type: i32, st
 }
 
 
-pub fn summarise_line(w: &WHOLine, i: i32) -> Option<WHOSummary>  {
+pub fn summarise_line(w: &WHOLine, dl_id: i32, line_number: i32) -> Option<WHOSummary>  {
 
     let sid = w.trial_id.replace("/", "-").replace("\\", "-").replace(".", "-");
     let mut sd_sid = sid.trim().to_string();
     
     if sd_sid == "" || sd_sid == "null" || sd_sid == "NULL" {        // Seems to happen, or has happened in the past, with one Dutch trial.
-        error!("Well that's weird - no study id on line {}!", i);
+        error!("Well that's weird - no study id on line {}!", line_number);
         return None;
     }
 
     let source_id = get_source_id(&sd_sid);
     if source_id == 0
     {
-        error!("Well that's weird - can't match the study id's {} source on line {}!", sd_sid, i);
+        error!("Well that's weird - can't match the study id's {} source on line {}!", sd_sid, line_number);
         return None;
     }
 
     if source_id == 100123 {
         sd_sid = sd_sid[0..19].to_string(); // lose country specific suffix
     }
-
+   
     let mut title = w.pub_title.replace_unicodes();
     if title.is_none() {
         title = w.scientific_title.replace_unicodes();
@@ -503,7 +504,8 @@ pub fn summarise_line(w: &WHOLine, i: i32) -> Option<WHOSummary>  {
         results_date_completed: res_completed,
         table_name: table_name,
         country_list: countries,
-        date_last_rev: date_last_rev,    // assumed to be always present
+        date_last_rev: date_last_rev,  // assumed to be always present
+        dl_id: dl_id,
     })
 }
 
@@ -513,17 +515,9 @@ fn get_naive_date (dt: &String) -> Option<NaiveDate> {
    match dt.as_iso_date()
    {
         Some(s) => {
-            let base_date = NaiveDate::parse_from_str("1900-01-01", "%Y-%m-%d").unwrap();
-            let d = match NaiveDate::parse_from_str(&s, "%Y-%m-%d") {
-                Ok(d) => d,
-                Err(_) => base_date,
-            };
-            
-            if d != base_date {
-                Some(d)
-            }
-            else {
-                None
+            match NaiveDate::parse_from_str(&s, "%Y-%m-%d") {
+                Ok(nd) => Some(nd),
+                Err(_) => None
             }
         },
         None => None,

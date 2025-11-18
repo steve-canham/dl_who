@@ -141,6 +141,7 @@ impl DateExtensions for String {
         {
             return None
         }
+
         iso_date =  date_string.clone();   // as the initial default
 
         let p1 = r#"^(19|20)\d{2}-(0?[1-9]|1[0-2])-(0?[1-9]|1\d|2\d|3[0-1])$"#;
@@ -324,6 +325,8 @@ impl DateExtensions for String {
 
 
     /* 
+
+    
     fn replace_nbr_spaces(&self) -> Option<String> {
         if self == "NULL" ||  self == "null" ||  self == "\"NULL\"" ||  self == "\"null\""
         ||  self.trim() == ""

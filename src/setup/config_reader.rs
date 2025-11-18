@@ -260,40 +260,39 @@ mod tests {
 full_file_stem = "ICTRPFullExport "
 full_file_num = "22"
 last_file_imported = "20250106 ICTRP.csv"
-target_file = "20250210 ICTRP.csv"
+target_file = "dummy test ICTRP.csv"
 
 [folders]
-csv_data_path="E:/MDR source data/WHO/data"
-csv_full_path="E:/MDR source data/WHO/data/Full export 2025-02"
-json_data_path="E:/MDR source files"
-log_folder_path="E:/MDR/MDR Logs"
+csv_data_path="/home/steve/Data/MDR source data/WHO/data"
+csv_full_path="/home/steve/Data/MDR source data/WHO/data/Full export 2025-02"
+json_data_path="/home/steve/Data/MDR json files/who"
+log_folder_path="/home/steve/Data/MDR/MDR_Logs/who"
 
 [database]
 db_host="localhost"
 db_user="user_name"
 db_password="password"
-db_port="5433"
+db_port="5432"
 mon_db_name="mon"
 src_db_name="who"
-
 "#;
         let config_string = config.to_string();
         let res = populate_config_vars(&config_string).unwrap();
 
-        assert_eq!(res.folders.csv_data_path, PathBuf::from("E:/MDR source data/WHO/data"));
-        assert_eq!(res.folders.csv_full_path, PathBuf::from("E:/MDR source data/WHO/data/Full export 2025-02"));
-        assert_eq!(res.folders.json_data_path, PathBuf::from("E:/MDR source files"));
-        assert_eq!(res.folders.log_folder_path, PathBuf::from("E:/MDR/MDR Logs"));
+        assert_eq!(res.folders.csv_data_path, PathBuf::from("/home/steve/Data/MDR source data/WHO/data"));
+        assert_eq!(res.folders.csv_full_path, PathBuf::from("/home/steve/Data/MDR source data/WHO/data/Full export 2025-02"));
+        assert_eq!(res.folders.json_data_path, PathBuf::from("/home/steve/Data/MDR json files/who"));
+        assert_eq!(res.folders.log_folder_path, PathBuf::from("/home/steve/Data/MDR/MDR_Logs/who"));
 
         assert_eq!(res.data_details.full_file_stem, "ICTRPFullExport ");
         assert_eq!(res.data_details.full_file_num, 22);
         assert_eq!(res.data_details.last_file_imported, "20250106 ICTRP.csv");
-        assert_eq!(res.data_details.target_file, "20250210 ICTRP.csv");
+        assert_eq!(res.data_details.target_file, "dummy test ICTRP.csv");
 
         assert_eq!(res.db_pars.db_host, "localhost");
         assert_eq!(res.db_pars.db_user, "user_name");
         assert_eq!(res.db_pars.db_password, "password");
-        assert_eq!(res.db_pars.db_port, 5433);
+        assert_eq!(res.db_pars.db_port, 5432);
         assert_eq!(res.db_pars.mon_db_name, "mon");
         assert_eq!(res.db_pars.src_db_name, "who");
     }
@@ -320,7 +319,7 @@ log_folder_path="E:\\MDR\\MDR Logs"
 db_host="localhost"
 db_user="user_name"
 db_password="password"
-db_port="5433"
+db_port="5432"
 mon_db_name="mon"
 src_db_name="who"
 
@@ -341,7 +340,7 @@ src_db_name="who"
         assert_eq!(res.db_pars.db_host, "localhost");
         assert_eq!(res.db_pars.db_user, "user_name");
         assert_eq!(res.db_pars.db_password, "password");
-        assert_eq!(res.db_pars.db_port, 5433);
+        assert_eq!(res.db_pars.db_port, 5432);
         assert_eq!(res.db_pars.mon_db_name, "mon");
         assert_eq!(res.db_pars.src_db_name, "who");
     }
@@ -356,18 +355,19 @@ src_db_name="who"
 full_file_stem = "ICTRPFullExport "
 full_file_num = "22"
 last_file_imported = "20250106 ICTRP.csv"
-target_file = "20250210 ICTRP.csv"
+target_file = "dummy test ICTRP.csv"
 
 [folders]
-csv_full_path="E:\\MDR source data\\WHO\\data\\Full export 2025-02"
-json_data_path="E:\\MDR source files"
-log_folder_path="E:\\MDR\\MDR Logs"
+csv_data_path=""
+csv_full_path="/home/steve/Data/MDR source data/WHO/data/Full export 2025-02"
+json_data_path="/home/steve/Data/MDR json files/who"
+log_folder_path="/home/steve/Data/MDR/MDR_Logs/who"
 
 [database]
 db_host="localhost"
 db_user="user_name"
-db_password="password"
-db_port="5433"
+db_password="password!"
+db_port="5432"
 mon_db_name="mon"
 src_db_name="who"
 
@@ -376,9 +376,9 @@ src_db_name="who"
         let res = populate_config_vars(&config_string).unwrap();
 
         assert_eq!(res.folders.csv_data_path, PathBuf::from(""));
-        assert_eq!(res.folders.csv_full_path, PathBuf::from("E:/MDR source data/WHO/data/Full export 2025-02"));
-        assert_eq!(res.folders.json_data_path, PathBuf::from("E:/MDR source files"));
-        assert_eq!(res.folders.log_folder_path, PathBuf::from("E:/MDR/MDR Logs"));
+        assert_eq!(res.folders.csv_full_path, PathBuf::from("/home/steve/Data/MDR source data/WHO/data/Full export 2025-02"));
+        assert_eq!(res.folders.json_data_path, PathBuf::from("/home/steve/Data/MDR json files/who"));
+        assert_eq!(res.folders.log_folder_path, PathBuf::from("/home/steve/Data/MDR/MDR_Logs/who"));
 
     }
 
@@ -395,15 +395,15 @@ last_file_imported = "20250106 ICTRP.csv"
 target_file = "20250210 ICTRP.csv"
 
 [folders]
-csv_data_path="E:/MDR source data/WHO/data"
-json_data_path="E:/MDR source files"
-log_folder_path="E:/MDR/MDR Logs"
+csv_data_path="/home/steve/Data/MDR source data/WHO/data"
+json_data_path="/home/steve/Data/MDR json files/who"
+log_folder_path="/home/steve/Data/MDR/MDR_Logs/who"
 
 [database]
 db_host="localhost"
 db_user="user_name"
 db_password="password"
-db_port="5433"
+db_port="5432"
 mon_db_name="mon"
 src_db_name="who"
 
@@ -411,10 +411,10 @@ src_db_name="who"
         let config_string = config.to_string();
         let res = populate_config_vars(&config_string).unwrap();
 
-        assert_eq!(res.folders.csv_data_path, PathBuf::from("E:/MDR source data/WHO/data"));
-        assert_eq!(res.folders.csv_full_path, PathBuf::from("E:/MDR source data/WHO/data"));
-        assert_eq!(res.folders.json_data_path, PathBuf::from("E:/MDR source files"));
-        assert_eq!(res.folders.log_folder_path, PathBuf::from("E:/MDR/MDR Logs"));
+        assert_eq!(res.folders.csv_data_path, PathBuf::from("/home/steve/Data/MDR source data/WHO/data"));
+        assert_eq!(res.folders.csv_full_path, PathBuf::from("/home/steve/Data/MDR source data/WHO/data"));
+        assert_eq!(res.folders.json_data_path, PathBuf::from("/home/steve/Data/MDR json files/who"));
+        assert_eq!(res.folders.log_folder_path, PathBuf::from("/home/steve/Data/MDR/MDR_Logs/who"));
         
     }
 
@@ -432,15 +432,15 @@ last_file_imported = "20250106 ICTRP.csv"
 target_file = "20250210 ICTRP.csv"
 
 [folders]
-csv_data_path="E:\\MDR source data\\WHO\\data"
-csv_full_path="E:\\MDR source data\\WHO\\data\\Full export 2025-02"
-log_folder_path="E:\\MDR\\MDR Logs"
+csv_data_path="/home/steve/Data/MDR source data/WHO/data"
+csv_full_path="/home/steve/Data/MDR source data/WHO/data/Full export 2025-02"
+log_folder_path="/home/steve/Data/MDR/MDR_Logs/who"
 
 [database]
 db_host="localhost"
 db_user="user_name"
 db_password="password"
-db_port="5433"
+db_port="5432"
 mon_db_name="mon"
 src_db_name="who"
 
@@ -463,16 +463,16 @@ last_file_imported = "20250106 ICTRP.csv"
 target_file = "20250210 ICTRP.csv"
 
 [folders]
-csv_data_path="E:\\MDR source data\\WHO\\data"
-csv_full_path="E:\\MDR source data\\WHO\\data\\Full export 2025-02"
-json_data_path="E:\\MDR source files"
+csv_data_path="/home/steve/Data/MDR source data/WHO/data"
+csv_full_path="/home/steve/Data/MDR source data/WHO/data/Full export 2025-02"
+json_data_path="/home/steve/Data/MDR json files/who"
 log_folder_path=""
 
 [database]
 db_host="localhost"
 db_user="user_name"
 db_password="password"
-db_port="5433"
+db_port="5432"
 mon_db_name="mon"
 src_db_name="who"
 
@@ -489,16 +489,16 @@ src_db_name="who"
 [data]
 
 [folders]
-csv_data_path="E:/MDR source data/WHO/data"
-csv_full_path="E:/MDR source data/WHO/data/Full export 2025-02"
-json_data_path="E:/MDR source files"
-log_folder_path="E:/MDR/MDR Logs"
+csv_data_path="/home/steve/Data/MDR source data/WHO/data"
+csv_full_path="/home/steve/Data/MDR source data/WHO/data/Full export 2025-02"
+json_data_path="/home/steve/Data/MDR json files/who"
+log_folder_path="/home/steve/Data/MDR/MDR_Logs/who"
 
 [database]
 db_host="localhost"
 db_user="user_name"
 db_password="password"
-db_port="5433"
+db_port="5432"
 mon_db_name="mon"
 src_db_name="who"
 
@@ -506,10 +506,10 @@ src_db_name="who"
         let config_string = config.to_string();
         let res = populate_config_vars(&config_string).unwrap();
 
-        assert_eq!(res.folders.csv_data_path, PathBuf::from("E:/MDR source data/WHO/data"));
-        assert_eq!(res.folders.csv_full_path, PathBuf::from("E:/MDR source data/WHO/data/Full export 2025-02"));
-        assert_eq!(res.folders.json_data_path, PathBuf::from("E:/MDR source files"));
-        assert_eq!(res.folders.log_folder_path, PathBuf::from("E:/MDR/MDR Logs"));
+        assert_eq!(res.folders.csv_data_path, PathBuf::from("/home/steve/Data/MDR source data/WHO/data"));
+        assert_eq!(res.folders.csv_full_path, PathBuf::from("/home/steve/Data/MDR source data/WHO/data/Full export 2025-02"));
+        assert_eq!(res.folders.json_data_path, PathBuf::from("/home/steve/Data/MDR json files/who"));
+        assert_eq!(res.folders.log_folder_path, PathBuf::from("/home/steve/Data/MDR/MDR_Logs/who"));
 
         assert_eq!(res.data_details.full_file_stem, "ICTRPFullExport ");
         assert_eq!(res.data_details.full_file_num, 0);
@@ -519,7 +519,7 @@ src_db_name="who"
         assert_eq!(res.db_pars.db_host, "localhost");
         assert_eq!(res.db_pars.db_user, "user_name");
         assert_eq!(res.db_pars.db_password, "password");
-        assert_eq!(res.db_pars.db_port, 5433);
+        assert_eq!(res.db_pars.db_port, 5432);
         assert_eq!(res.db_pars.mon_db_name, "mon");
         assert_eq!(res.db_pars.src_db_name, "who");
     }
@@ -539,15 +539,15 @@ last_file_imported = "20250106 ICTRP.csv"
 target_file = "20250210 ICTRP.csv"
 
 [folders]
-csv_data_path="E:/MDR source data/WHO/data"
-csv_full_path="E:/MDR source data/WHO/data/Full export 2025-02"
-json_data_path="E:/MDR source files"
-log_folder_path="E:/MDR/MDR Logs"
+csv_data_path="/home/steve/Data/MDR source data/WHO/data"
+csv_full_path="/home/steve/Data/MDR source data/WHO/data/Full export 2025-02"
+json_data_path="/home/steve/Data/MDR json files/who"
+log_folder_path="/home/steve/Data/MDR/MDR_Logs/who"
 
 [database]
 db_host="localhost"
 db_password="password"
-db_port="5433"
+db_port="5432"
 mon_db_name="mon"
 src_db_name="who"
 "#;
@@ -568,10 +568,10 @@ last_file_imported = "20250106 ICTRP.csv"
 target_file = "20250210 ICTRP.csv"
 
 [folders]
-csv_data_path="E:/MDR source data/WHO/data"
-csv_full_path="E:/MDR source data/WHO/data/Full export 2025-02"
-json_data_path="E:/MDR source files"
-log_folder_path="E:/MDR/MDR Logs"
+csv_data_path="/home/steve/Data/MDR source data/WHO/data"
+csv_full_path="/home/steve/Data/MDR source data/WHO/data/Full export 2025-02"
+json_data_path="/home/steve/Data/MDR json files/who"
+log_folder_path="/home/steve/Data/MDR/MDR_Logs/who"
 
 [database]
 db_user="user_name"

@@ -331,23 +331,25 @@ mod tests {
     fn check_results_with_no_params() {
         let config = r#"
 [data]
-full_file_stem = "ICTRPFullExport foo "
+full_file_stem = "ICTRPFullExport "
 full_file_num = "22"
 last_file_imported = "20250106 ICTRP.csv"
-target_file = "ffff.csv"
+target_file = "dummy test ICTRP.csv"
 
 [folders]
-csv_data_path="E:/MDR source data/WHO/data"
-csv_full_path="E:/MDR source data/WHO/data/Full export 2025-02"
-json_data_path="E:/MDR source files"
-log_folder_path="E:/MDR/MDR Logs"
+csv_data_path="/home/steve/Data/MDR source data/WHO"
+csv_full_path="/home/steve/Data/MDR source data/WHO/Full export 2025-02"
+json_data_path="/home/steve/Data/MDR json files/who"
+log_folder_path="/home/steve/Data/MDR/MDR_Logs/who"
 
 [database]
 db_host="localhost"
 db_user="user_name"
 db_password="password"
-db_port="5433"
-db_name="mon"
+db_port="5432"
+mon_db_name="mon"
+src_db_name="who"
+
         "#;
         let config_string = config.to_string();
         config_reader::populate_config_vars(&config_string).unwrap();
@@ -359,14 +361,16 @@ db_name="mon"
         let res = get_params(cli_pars, &config_string).unwrap();
         
         assert_eq!(res.dl_type, 501);
-        assert_eq!(res.csv_data_path, PathBuf::from("E:/MDR source data/WHO/data"));
-        assert_eq!(res.csv_full_path, PathBuf::from("E:/MDR source data/WHO/data/Full export 2025-02"));
-        assert_eq!(res.json_data_path, PathBuf::from("E:/MDR source files"));
-        assert_eq!(res.log_folder_path, PathBuf::from("E:/MDR/MDR Logs"));
-        assert_eq!(res.full_file_stem, "ICTRPFullExport foo ");
+
+        assert_eq!(res.csv_data_path, PathBuf::from("/home/steve/Data/MDR source data/WHO"));
+        assert_eq!(res.csv_full_path, PathBuf::from("/home/steve/Data/MDR source data/WHO/Full export 2025-02"));
+        assert_eq!(res.json_data_path, PathBuf::from("/home/steve/Data/MDR json files/who"));
+        assert_eq!(res.log_folder_path, PathBuf::from("/home/steve/Data/MDR/MDR_Logs/who"));
+        
+        assert_eq!(res.full_file_stem, "ICTRPFullExport ");
         assert_eq!(res.full_file_num, 22);
         assert_eq!(res.last_file_imported, "20250106 ICTRP.csv");
-        assert_eq!(res.target, "ffff.csv");
+        assert_eq!(res.target, "dummy test ICTRP.csv");
     }
 
     #[test]
@@ -379,17 +383,19 @@ last_file_imported = "20250106 ICTRP.csv"
 target_file = "20250210 ICTRP.csv"
 
 [folders]
-csv_data_path="E:/MDR source data/WHO/data"
-csv_full_path="E:/MDR source data/WHO/data/Full export 2025-02"
-json_data_path="E:/MDR source files"
-log_folder_path="E:/MDR/MDR Logs"
+csv_data_path="/home/steve/Data/MDR source data/WHO"
+csv_full_path="/home/steve/Data/MDR source data/WHO/Full Export 2025-02"
+json_data_path="/home/steve/Data/MDR json files/who"
+log_folder_path="/home/steve/Data/MDR/MDR_Logs/who"
 
 [database]
 db_host="localhost"
 db_user="user_name"
 db_password="password"
-db_port="5433"
-db_name="mon"
+db_port="5432"
+mon_db_name="mon"
+src_db_name="who"
+
         "#;
         let config_string = config.to_string();
         config_reader::populate_config_vars(&config_string).unwrap();
@@ -401,10 +407,11 @@ db_name="mon"
         let res = get_params(cli_pars, &config_string).unwrap();
 
         assert_eq!(res.dl_type, 503);
-        assert_eq!(res.csv_data_path, PathBuf::from("E:/MDR source data/WHO/data"));
-        assert_eq!(res.csv_full_path, PathBuf::from("E:/MDR source data/WHO/data/Full export 2025-02"));
-        assert_eq!(res.json_data_path, PathBuf::from("E:/MDR source files"));
-        assert_eq!(res.log_folder_path, PathBuf::from("E:/MDR/MDR Logs"));
+        assert_eq!(res.csv_data_path, PathBuf::from("/home/steve/Data/MDR source data/WHO"));
+        assert_eq!(res.csv_full_path, PathBuf::from("/home/steve/Data/MDR source data/WHO/Full Export 2025-02"));
+        assert_eq!(res.json_data_path, PathBuf::from("/home/steve/Data/MDR json files/who"));
+        assert_eq!(res.log_folder_path, PathBuf::from("/home/steve/Data/MDR/MDR_Logs/who"));
+
         assert_eq!(res.full_file_stem, "ICTRPFullExport ");
         assert_eq!(res.full_file_num, 22);
         assert_eq!(res.last_file_imported, "20250106 ICTRP.csv");
@@ -415,21 +422,22 @@ db_name="mon"
     fn check_501_with_min_config() {
 
         let config = r#"
-        [data]
-        last_file_imported = "20250106 ICTRP.csv"
+[data]
+last_file_imported = "20250106 ICTRP.csv"
 
-        [folders]
-        csv_data_path="E:/MDR source data/WHO/data"
-        json_data_path="E:/MDR source files"
-        log_folder_path="E:/MDR/MDR Logs"
-        
-        [database]
-        db_host="localhost"
-        db_user="user_name"
-        db_password="password"
-        db_port="5433"
-        db_name="mon"
-            "#;
+[folders]
+csv_data_path="/home/steve/Data/MDR source data/WHO"
+json_data_path="/home/steve/Data/MDR json files/who"
+log_folder_path="/home/steve/Data/MDR/MDR_Logs/who"
+
+[database]
+db_host="localhost"
+db_user="user_name"
+db_password="password"
+db_port="5432"
+mon_db_name="mon"
+src_db_name="who"
+"#;
         let config_string = config.to_string();
         config_reader::populate_config_vars(&config_string).unwrap();
 
@@ -440,9 +448,9 @@ db_name="mon"
         let res = get_params(cli_pars, &config_string).unwrap();
 
         assert_eq!(res.dl_type, 501);
-        assert_eq!(res.csv_data_path, PathBuf::from("E:/MDR source data/WHO/data"));
-        assert_eq!(res.json_data_path, PathBuf::from("E:/MDR source files"));
-        assert_eq!(res.log_folder_path, PathBuf::from("E:/MDR/MDR Logs"));
+        assert_eq!(res.csv_data_path, PathBuf::from("/home/steve/Data/MDR source data/WHO"));
+        assert_eq!(res.json_data_path, PathBuf::from("/home/steve/Data/MDR json files/who"));
+        assert_eq!(res.log_folder_path, PathBuf::from("/home/steve/Data/MDR/MDR_Logs/who"));
         assert_eq!(res.last_file_imported, "20250106 ICTRP.csv");
     }
 
@@ -451,19 +459,20 @@ db_name="mon"
     fn check_501_no_csv_folder_panics() {
 
         let config = r#"
-        [data]
-        last_file_imported = "20250106 ICTRP.csv"
+[data]
+last_file_imported = "20250106 ICTRP.csv"
 
-        [folders]
-        json_data_path="E:/MDR source files"
-        log_folder_path="E:/MDR/MDR Logs"
-        
-        [database]
-        db_host="localhost"
-        db_user="user_name"
-        db_password="password"
-        db_port="5433"
-        db_name="mon"
+[folders]
+json_data_path="/home/steve/Data/MDR json files/who"
+log_folder_path="/home/steve/Data/MDR/MDR_Logs/who"
+
+[database]
+db_host="localhost"
+db_user="user_name"
+db_password="password"
+db_port="5432"
+mon_db_name="mon"
+src_db_name="who"
             "#;
         let config_string = config.to_string();
         config_reader::populate_config_vars(&config_string).unwrap();
@@ -480,20 +489,21 @@ db_name="mon"
     fn check_501_no_last_file_panics() {
 
         let config = r#"
-        [data]
+[data]
 
-        [folders]
-        csv_data_path="E:/MDR source data/WHO/data"
-        json_data_path="E:/MDR source files"
-        log_folder_path="E:/MDR/MDR Logs"
-        
-        [database]
-        db_host="localhost"
-        db_user="user_name"
-        db_password="password"
-        db_port="5433"
-        db_name="mon"
-            "#;
+[folders]
+csv_data_path="/home/steve/Data/MDR source data/WHO"
+json_data_path="/home/steve/Data/MDR json files/who"
+log_folder_path="/home/steve/Data/MDR/MDR_Logs/who"
+
+[database]
+db_host="localhost"
+db_user="user_name"
+db_password="password"
+db_port="5432"
+mon_db_name="mon"
+src_db_name="who"
+"#;
         let config_string = config.to_string();
         config_reader::populate_config_vars(&config_string).unwrap();
 
@@ -512,17 +522,18 @@ db_name="mon"
 full_file_num = "22"
 
 [folders]
-csv_full_path="E:/MDR source data/WHO/data/Full export 2025-02"
-json_data_path="E:/MDR source files"
-log_folder_path="E:/MDR/MDR Logs"
+csv_full_path="/home/steve/Data/MDR source data/WHO/Full Export 2025-02"
+json_data_path="/home/steve/Data/MDR json files/who"
+log_folder_path="/home/steve/Data/MDR/MDR_Logs/who"
 
 [database]
 db_host="localhost"
 db_user="user_name"
 db_password="password"
-db_port="5433"
-db_name="mon"
-    "#;
+db_port="5432"
+mon_db_name="mon"
+src_db_name="who"
+"#;
         let config_string = config.to_string();
         config_reader::populate_config_vars(&config_string).unwrap();
 
@@ -533,9 +544,9 @@ db_name="mon"
         let res = get_params(cli_pars, &config_string).unwrap();
 
         assert_eq!(res.dl_type, 502);
-        assert_eq!(res.csv_full_path, PathBuf::from("E:/MDR source data/WHO/data/Full export 2025-02"));
-        assert_eq!(res.json_data_path, PathBuf::from("E:/MDR source files"));
-        assert_eq!(res.log_folder_path, PathBuf::from("E:/MDR/MDR Logs"));
+        assert_eq!(res.csv_full_path, PathBuf::from("/home/steve/Data/MDR source data/WHO/Full Export 2025-02"));
+        assert_eq!(res.json_data_path, PathBuf::from("/home/steve/Data/MDR json files/who"));
+        assert_eq!(res.log_folder_path, PathBuf::from("/home/steve/Data/MDR/MDR_Logs/who"));
         assert_eq!(res.full_file_stem, "ICTRPFullExport ");
         assert_eq!(res.full_file_num, 22);
     }
@@ -545,19 +556,20 @@ db_name="mon"
     fn check_502_no_full_path_panics() {
 
         let config = r#"
-        [data]
-        full_file_num = "22"
-        
-        [folders]
-        json_data_path="E:/MDR source files"
-        log_folder_path="E:/MDR/MDR Logs"
-        
-        [database]
-        db_host="localhost"
-        db_user="user_name"
-        db_password="password"
-        db_port="5433"
-        db_name="mon"
+[data]
+full_file_num = "22"
+
+[folders]
+json_data_path="/home/steve/Data/MDR json files/who"
+log_folder_path="/home/steve/Data/MDR/MDR_Logs/who"
+
+[database]
+db_host="localhost"
+db_user="user_name"
+db_password="password"
+db_port="5432"
+mon_db_name="mon"
+src_db_name="who"
             "#;
         let config_string = config.to_string();
         config_reader::populate_config_vars(&config_string).unwrap();
@@ -574,19 +586,19 @@ db_name="mon"
     fn check_502_no_full_file_num_panics() {
 
         let config = r#"
-        [data]
-        
-        [folders]
-        csv_full_path="E:/MDR source data/WHO/data/Full export 2025-02"
-        json_data_path="E:/MDR source files"
-        log_folder_path="E:/MDR/MDR Logs"
-        
-        [database]
-        db_host="localhost"
-        db_user="user_name"
-        db_password="password"
-        db_port="5433"
-        db_name="mon"
+[data]
+
+[folders]
+json_data_path="/home/steve/Data/MDR json files/who"
+log_folder_path="/home/steve/Data/MDR/MDR_Logs/who"
+
+[database]
+db_host="localhost"
+db_user="user_name"
+db_password="password"
+db_port="5432"
+mon_db_name="mon"
+src_db_name="who"
             "#;
         let config_string = config.to_string();
         config_reader::populate_config_vars(&config_string).unwrap();
@@ -602,20 +614,21 @@ db_name="mon"
     fn check_503_with_min_config() {
 
         let config = r#"
-        [data]
-        target_file = "ffff.csv"
+[data]
+target_file = "dummy test ICTRP.csv"
 
-        [folders]
-        csv_data_path="E:/MDR source data/WHO/data"
-        json_data_path="E:/MDR source files"
-        log_folder_path="E:/MDR/MDR Logs"
-        
-        [database]
-        db_host="localhost"
-        db_user="user_name"
-        db_password="password"
-        db_port="5433"
-        db_name="mon"
+[folders]
+csv_data_path="/home/steve/Data/MDR source data/WHO"
+json_data_path="/home/steve/Data/MDR json files/who"
+log_folder_path="/home/steve/Data/MDR/MDR_Logs/who"
+
+[database]
+db_host="localhost"
+db_user="user_name"
+db_password="password"
+db_port="5432"
+mon_db_name="mon"
+src_db_name="who"
             "#;
         let config_string = config.to_string();
         config_reader::populate_config_vars(&config_string).unwrap();
@@ -627,10 +640,10 @@ db_name="mon"
         let res = get_params(cli_pars, &config_string).unwrap();
 
         assert_eq!(res.dl_type, 503);
-        assert_eq!(res.csv_data_path, PathBuf::from("E:/MDR source data/WHO/data"));
-        assert_eq!(res.json_data_path, PathBuf::from("E:/MDR source files"));
-        assert_eq!(res.log_folder_path, PathBuf::from("E:/MDR/MDR Logs"));
-        assert_eq!(res.target, "ffff.csv");
+        assert_eq!(res.csv_data_path, PathBuf::from("/home/steve/Data/MDR source data/WHO"));
+        assert_eq!(res.json_data_path, PathBuf::from("/home/steve/Data/MDR json files/who"));
+        assert_eq!(res.log_folder_path, PathBuf::from("/home/steve/Data/MDR/MDR_Logs/who"));
+        assert_eq!(res.target, "dummy test ICTRP.csv");
     }
 
     #[test]
@@ -638,19 +651,20 @@ db_name="mon"
     fn check_503_no_csv_folder_panics() {
 
         let config = r#"
-        [data]
-        target_file = "ffff.csv"
+[data]
+target_file = "dummy test ICTRP.csv"
 
-        [folders]
-        json_data_path="E:/MDR source files"
-        log_folder_path="E:/MDR/MDR Logs"
-                
-        [database]
-        db_host="localhost"
-        db_user="user_name"
-        db_password="password"
-        db_port="5433"
-        db_name="mon"
+[folders]
+json_data_path="/home/steve/Data/MDR json files/who"
+log_folder_path="/home/steve/Data/MDR/MDR_Logs/who"
+        
+[database]
+db_host="localhost"
+db_user="user_name"
+db_password="password"
+db_port="5432"
+mon_db_name="mon"
+src_db_name="who"
             "#;
         let config_string = config.to_string();
         config_reader::populate_config_vars(&config_string).unwrap();
@@ -667,19 +681,20 @@ db_name="mon"
     fn check_503_no_target_panics() {
 
         let config = r#"
-        [data]
+[data]
 
-        [folders]
-        csv_data_path="E:/MDR source data/WHO/data"
-        json_data_path="E:/MDR source files"
-        log_folder_path="E:/MDR/MDR Logs"
-                
-        [database]
-        db_host="localhost"
-        db_user="user_name"
-        db_password="password"
-        db_port="5433"
-        db_name="mon"
+[folders]
+csv_data_path="/home/steve/Data/MDR source data/WHO"
+json_data_path="/home/steve/Data/MDR json files/who"
+log_folder_path="/home/steve/Data/MDR/MDR_Logs/who"
+        
+[database]
+db_host="localhost"
+db_user="user_name"
+db_password="password"
+db_port="5432"
+mon_db_name="mon"
+src_db_name="who"
             "#;
         let config_string = config.to_string();
         config_reader::populate_config_vars(&config_string).unwrap();
