@@ -9,7 +9,7 @@ pub async fn aggregate_who_data(pool: &Pool<Postgres>) -> Result<(), AppError> {
 
     // aggregation function has several phases
 
-    // set up the table which has the ;ist of WHO data tables
+    // set up the table which has the list of WHO data tables
 
     data_access::create_table_list(pool).await?;
 

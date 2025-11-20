@@ -95,7 +95,7 @@ pub async fn download(args: Vec<OsString>) -> Result<(), AppError> {
                 let file_num = params.full_file_num + 1;
                 let file_stem = params.full_file_stem;
 
-                for i in 4..file_num {
+                for i in 1..file_num {
                     let file_name = file_stem.clone() + &(format!("{:0>3}", i) + ".csv");
                     let file_path: PathBuf = [&source_folder, &PathBuf:: from(file_name)].iter().collect();
                     let res = download::process_single_file(&file_path, &json_path, dl_id, &src_pool).await?;

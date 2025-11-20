@@ -84,16 +84,6 @@ pub async fn store_who_summary(rec: WHOSummary, full_path: PathBuf, pool: &Pool<
 
     // WHO summary data needs to be modified before storage in db.
 
-    let reg_year: Option<i32>;
-    let reg_month: Option<i32>;
-    let reg_day: Option<i32>;
-    (reg_year, reg_month, reg_day) = split_iso_date(rec.date_registration);
-
-    let enrol_year: Option<i32>;
-    let enrol_month: Option<i32>;
-    let enrol_day: Option<i32>;
-    (enrol_year, enrol_month, enrol_day) = split_iso_date(rec.date_enrolment);
-
     let reg_ids: Option<Vec::<String>>;
     let oth_ids: Option<Vec::<String>>;
     (reg_ids, oth_ids) = split_secids(rec.secondary_ids);
@@ -103,7 +93,7 @@ pub async fn store_who_summary(rec: WHOSummary, full_path: PathBuf, pool: &Pool<
         None
     }   
     else {
-        Some(full_path.to_str().unwrap().replace("\\\\", "/").replace("\\", "/"))
+        Some(full_path.to_str().unwrap().replace("\\\\", "/").replace("\\", "/"))   // to support Windows
     };   
         
     let mut sql = format!("SELECT EXISTS(SELECT 1 from bas.{} where sd_sid = '{}')", rec.table_name, rec.sd_sid); 
@@ -147,8 +137,8 @@ pub async fn store_who_summary(rec: WHOSummary, full_path: PathBuf, pool: &Pool<
     .bind(rec.sd_sid).bind(rec.title)
     .bind(rec.study_type).bind(rec.study_status)
     .bind(reg_ids).bind(oth_ids)
-    .bind(reg_year).bind(reg_month).bind(reg_day)
-    .bind(enrol_year).bind(enrol_month).bind(enrol_day)
+    .bind(rec.reg_year).bind(rec.reg_month).bind(rec.reg_day)
+    .bind(rec.enrol_year).bind(rec.enrol_month).bind(rec.enrol_day)
     .bind(rec.results_yes_no).bind(rec.results_url_link).bind(rec.results_url_protocol)
     .bind(rec.results_date_posted).bind(rec.results_date_first_pub).bind(rec.results_date_completed)
     .bind(rec.country_list).bind(rec.date_last_rev).bind(rec.dl_id).bind(now).bind(local_path)
@@ -159,29 +149,6 @@ pub async fn store_who_summary(rec: WHOSummary, full_path: PathBuf, pool: &Pool<
 
 }
  
-
-
-fn split_iso_date (dt: Option<String>) -> (Option<i32>, Option<i32>, Option<i32>) {
-
-    match dt {
-        Some(d) => {
-            if d.len() != 10 {
-                println!("Odd iso date: {}", d);
-            }
-            let year: i32 = d[0..4].parse().unwrap_or(0);
-            let month: i32 = d[5..7].parse().unwrap_or(0);
-            let day: i32 = d[8..].parse().unwrap_or(0);
-            if year != 0 && month != 0 && day != 0 {
-                (Some(year), Some(month), Some(day))           
-            }
-            else {
-                (None, None, None)      
-            }
-         },
-         None => (None, None, None),     
-    }
-}
-
 
 fn split_secids (ids: Option<Vec<SecondaryId>>) -> (Option<Vec<String>>, Option<Vec<String>>) {
     
@@ -217,7 +184,6 @@ fn split_secids (ids: Option<Vec<SecondaryId>>) -> (Option<Vec<String>>, Option<
         None => (None, None),
     }
 }
-
 
 
 /*

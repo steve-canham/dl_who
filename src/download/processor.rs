@@ -437,11 +437,18 @@ pub fn summarise_line(w: &WHOLine, dl_id: i32, line_number: i32) -> Option<WHOSu
     let date_last_rev = get_naive_date (&w.last_updated);
     
     let date_reg = w.date_registration.as_iso_date();
-    let reg_year: i32 = match date_reg {
-        Some(d) => d[0..4].parse().unwrap_or(0),
-        None => 0,
-    };
-   
+    let reg_year: i32;
+    let reg_month: i32;
+    let reg_day: i32;
+    (reg_year, reg_month, reg_day) = split_iso_date(&date_reg);
+
+    let date_enrolment = w.date_enrollement.as_iso_date();
+    let enrol_year: i32;
+    let enrol_month: i32;
+    let enrol_day: i32;
+    (enrol_year, enrol_month, enrol_day) = split_iso_date(&date_enrolment);
+
+    
     let mut table_name = get_db_name(source_id);
     let mut suffix: &str;
 
@@ -494,9 +501,14 @@ pub fn summarise_line(w: &WHOLine, dl_id: i32, line_number: i32) -> Option<WHOSu
         study_type: stype,
         study_status: status,
         secondary_ids: secids,
-        date_registration: w.date_registration.as_iso_date(),
-        date_enrolment: w.date_enrollement.as_iso_date(),
-        results_yes_no: w.results_yes_no.tidy(),
+        date_registration: date_reg,
+        reg_year: reg_year,
+        reg_month: reg_month,
+        reg_day: reg_day,
+        date_enrolment: date_enrolment,
+        enrol_year: enrol_year,
+        enrol_month: enrol_month,
+        enrol_day: enrol_day,        results_yes_no: w.results_yes_no.tidy(),
         results_url_link: w.results_url_link.tidy(),
         results_url_protocol: w.results_url_protocol.tidy(),
         results_date_posted: res_posted,
@@ -508,6 +520,7 @@ pub fn summarise_line(w: &WHOLine, dl_id: i32, line_number: i32) -> Option<WHOSu
         dl_id: dl_id,
     })
 }
+
 
 
 fn get_naive_date (dt: &String) -> Option<NaiveDate> {
@@ -523,3 +536,27 @@ fn get_naive_date (dt: &String) -> Option<NaiveDate> {
         None => None,
    }
 }
+
+
+fn split_iso_date (dt: &Option<String>) -> (i32, i32, i32) {
+
+    match dt {
+        Some(d) => {
+            if d.len() != 10 {
+                println!("Odd iso date: {}", d);
+            }
+            let year: i32 = d[0..4].parse().unwrap_or(0);
+            let month: i32 = d[5..7].parse().unwrap_or(0);
+            let day: i32 = d[8..].parse().unwrap_or(0);
+            if year != 0 && month != 0 && day != 0 {
+                (year, month, day)           
+            }
+            else {
+                (0, 0, 0)      
+            }
+         },
+         None => (0, 0, 0),     
+    }
+}
+
+

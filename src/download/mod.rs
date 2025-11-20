@@ -9,8 +9,8 @@ use std::path::PathBuf;
 use crate::{AppError, DownloadResult};
 use data_access::{add_new_single_file_record, 
     add_contents_record, store_who_summary};
-use file_models::WHOLine;
-use who_helper::get_db_name;
+use who_helper::{get_db_name, split_by_year};
+use file_models::{WHOLine, WHOSummary};
 use std::fs;
 use std::io::BufReader;
 use std::fs::File;
@@ -58,28 +58,20 @@ pub async fn process_single_file(file_path: &PathBuf, json_path: &PathBuf, dl_id
             None => continue,   // some sort of problem occured - should have been logged
         };
 
-        let mut full_path = PathBuf::from("");     
-        if rec_summ.source_id != 100120  && rec_summ.source_id != 100126 {           // file production not necessary for these sources
+        let mut file_path = PathBuf::from("");     
+        if rec_summ.source_id != 100120  && rec_summ.source_id != 100126 {   // file production not necessary for these sources
             
             // Process the whole line to get a full WHO record for storage.
 
             match processor::process_line(who_line, &rec_summ)
             {
                 Some (rec) => {
-
-                    let db_name = get_db_name(rec_summ.source_id);
-                    let file_folder: PathBuf = [json_path, &PathBuf::from(&db_name)].iter().collect();
-                    if !folder_exists(&file_folder) {
-                        fs::create_dir_all(&file_folder)?;
-                    }
-
-                    let file_name = format!("{}.json", &rec.sd_sid);
-                    full_path = [file_folder, PathBuf::from(&file_name)].iter().collect();
                     
                     // Write the JSON string to a file.
-                    
+
+                    file_path = get_file_path(json_path, &rec_summ)?;
                     let json_string = to_string_pretty(&rec).unwrap();
-                    let mut file = File::create(&full_path)?;
+                    let mut file = File::create(&file_path)?;
                     file.write_all(json_string.as_bytes())?;
                 },
 
@@ -94,7 +86,7 @@ pub async fn process_single_file(file_path: &PathBuf, json_path: &PathBuf, dl_id
 
         // Store the WHO summary record in the database (whether a file was produced or not).
 
-        let added = store_who_summary(rec_summ, full_path, src_pool).await?;           
+        let added = store_who_summary(rec_summ, file_path, src_pool).await?;           
 
         // Update the Download summary struct.
 
@@ -125,4 +117,30 @@ fn folder_exists(folder_name: &PathBuf) -> bool {
         Err(_e) => false,           
     };
     res
+}
+
+
+fn get_file_path(json_path: &PathBuf, rec_summ: &WHOSummary) -> Result<PathBuf, AppError> {
+
+    let source_id = rec_summ.source_id;
+    let mut db_part = get_db_name(source_id);  
+
+    if split_by_year(source_id)
+    {
+        // Folders should be split by year of registration
+        // Applies to EUCTR and CTIS, and the Indian, Chinese, Japanese,
+        // Dutch, German and Iranian registries.
+
+        let yr = rec_summ.reg_year;
+        let yr_as_string = if yr == 0 || yr < 2007 {"pre-2007"} else {&yr.to_string()};
+        db_part = db_part + "/" + yr_as_string;
+    }
+
+    let file_folder: PathBuf = [json_path, &PathBuf::from(&db_part)].iter().collect();
+    if !folder_exists(&file_folder) {
+        fs::create_dir_all(&file_folder)?;
+    }
+    let file_name = format!("{}.json", rec_summ.sd_sid);
+
+    Ok([file_folder, PathBuf::from(&file_name)].iter().collect())
 }

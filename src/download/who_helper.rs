@@ -4,6 +4,7 @@ use std::sync::LazyLock;
 use regex::Regex;
 use std::collections::HashSet;
 
+
 pub fn get_source_id(sd_sid: &String) -> i32 {
     let usid = sd_sid.to_uppercase();
     match usid {
@@ -31,6 +32,7 @@ pub fn get_source_id(sd_sid: &String) -> i32 {
     }
 }
 
+
 pub fn get_db_name (source_id: i32) -> String {
     let db_name = match source_id {
         100120 => "ctg",
@@ -56,6 +58,33 @@ pub fn get_db_name (source_id: i32) -> String {
         _ => ""
     };
     db_name.to_string()
+}
+
+
+pub fn split_by_year (source_id: i32) -> bool {
+    
+    match source_id {
+        100116 => true,
+        100117 => false,
+        100118 => true,
+        100119 => false,
+        100121 => true,
+        100122 => false,
+        100123 => true,
+        100124 => true,
+        100125 => true,
+        100127 => true,
+        100128 => false,
+        100129 => false,
+        100130 => false,
+        100131 => false,
+        100132 => true,
+        110428 => true,
+        101989 => false,
+        109108 => false,
+        _ => false
+    }
+
 }
 
 
@@ -126,6 +155,7 @@ pub fn get_type(study_type: &Option<String>) -> i32 {
         0
     }
 }
+
 
 pub fn get_status(status: &Option<String>) -> i32 {
 
@@ -316,7 +346,6 @@ pub fn get_conditions(condition_list: &String, source_id: i32) -> (Vec<String>, 
 }
 
 
-
 pub fn split_and_dedup_countries(source_id: i32, country_list: &String) -> Option<Vec<String>> {
 
     // country list known to be non-null and already 'tidied'.
@@ -445,8 +474,8 @@ pub fn add_eu_design_features(design: &String) -> Vec<WhoStudyFeature> {
     fs
 }
 
-pub fn add_int_study_features(design_list: &String) -> Vec<WhoStudyFeature>
-{
+
+pub fn add_int_study_features(design_list: &String) -> Vec<WhoStudyFeature> {
     let mut fs = Vec::<WhoStudyFeature>::new();
     let design = design_list.replace(" :", ":"); // to make comparisons easier
 
@@ -497,8 +526,7 @@ pub fn add_int_study_features(design_list: &String) -> Vec<WhoStudyFeature>
 }
 
 
-pub fn add_obs_study_features(design: &String) -> Vec<WhoStudyFeature>
-{
+pub fn add_obs_study_features(design: &String) -> Vec<WhoStudyFeature> {
     let mut fs = Vec::<WhoStudyFeature>::new();
     
     if design.contains("observational study model")
@@ -554,8 +582,7 @@ pub fn add_obs_study_features(design: &String) -> Vec<WhoStudyFeature>
 }
 
 
-pub fn add_masking_features(design_list: &String) -> Vec<WhoStudyFeature>
-{
+pub fn add_masking_features(design_list: &String) -> Vec<WhoStudyFeature> {
     let mut fs = Vec::<WhoStudyFeature>::new();
     let design = design_list.replace(" :", ":"); // to make comparisons easier
 
@@ -631,8 +658,8 @@ pub fn add_masking_features(design_list: &String) -> Vec<WhoStudyFeature>
     fs
 }
 
-pub fn add_eu_phase_features(phase_list: &String) -> Vec<WhoStudyFeature>
-{
+
+pub fn add_eu_phase_features(phase_list: &String) -> Vec<WhoStudyFeature> {
     let mut fs = Vec::<WhoStudyFeature>::new();
     
     // phase string in the form
@@ -676,8 +703,8 @@ pub fn add_eu_phase_features(phase_list: &String) -> Vec<WhoStudyFeature>
     fs
 }
 
-pub fn add_phase_features(phase: &String) -> Vec<WhoStudyFeature>
-{
+
+pub fn add_phase_features(phase: &String) -> Vec<WhoStudyFeature> {
     let mut fs = Vec::<WhoStudyFeature>::new();
     
     if phase != "not selected" && phase != "not applicable"
@@ -736,8 +763,8 @@ pub fn add_phase_features(phase: &String) -> Vec<WhoStudyFeature>
 }
 
 
-    pub fn  split_and_add_ids(existing_ids: &Vec::<SecondaryId>, sd_sid: &String, in_string: &String, source_field: &str) -> Vec<SecondaryId>
-    {
+pub fn  split_and_add_ids(existing_ids: &Vec::<SecondaryId>, sd_sid: &String, in_string: &String, source_field: &str) -> Vec<SecondaryId> {
+        
         // in_string already known to be non-null, non-empty.
 
         let ids: Vec<&str> = in_string.split(";").collect();
@@ -795,8 +822,7 @@ pub fn add_phase_features(phase: &String) -> Vec<WhoStudyFeature>
     }
     
 
-    pub fn get_sec_id_details(sec_id: &str) -> SecIdBase
-    {
+pub fn get_sec_id_details(sec_id: &str) -> SecIdBase {
 
         let mut sid = contains_nct(sec_id);
         if sid.is_none() {
@@ -895,171 +921,82 @@ pub fn add_phase_features(phase: &String) -> Vec<WhoStudyFeature>
     }
 
     
-    // Collection of regex check functions, where the regex is stored
-    // in a static lazy lock variable - i.e. it needs instantiating only once.
+// Collection of regex check functions, where the regex is stored
+// in a static lazy lock variable - i.e. it needs instantiating only once.
 
-    fn contains_nct(hay: &str) -> Option<SecIdBase> {
-        if hay.contains("NCT") {
-            let hay2 = hay.replace("NCT ", "NCT").replace("NCTNumber", "");
-            static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"NCT[0-9]{8}").unwrap());
-            match RE.captures(&hay2) {
-                Some(s) => {
-                let id = &s[0];
-                if id == "NCT11111111" || id == "NCT99999999" 
-                || id == "NCT12345678" || id == "NCT87654321" {
-                    None
-                }
-                else {
-                    Some(SecIdBase{
-                        processed_id: id.to_string(),
-                        sec_id_source: 100120, 
-                        sec_id_type_id: 11,
-                        sec_id_type: "Trial Registry ID".to_string(),
-                    })
-                }
-            },
-                None => None,
-            }  
-        }
-        else {
-           None 
-        }
-    }
-
-    fn contains_euctr(hay: &str) -> Option<SecIdBase> {
-        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"20[0-9]{2}-[0-9]{6}-[0-9]{2}").unwrap());
-        static RE_CTIS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"20[2-9][0-9]-5[0-9]{5}-[0-9]{2}").unwrap());
-        match RE.captures(hay) {
+fn contains_nct(hay: &str) -> Option<SecIdBase> {
+    if hay.contains("NCT") {
+        let hay2 = hay.replace("NCT ", "NCT").replace("NCTNumber", "");
+        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"NCT[0-9]{8}").unwrap());
+        match RE.captures(&hay2) {
             Some(s) => {
-                match RE_CTIS.captures(hay) {
-                    Some (s1) => {
-                        let id = &s1[0];
-                        let processed_id = format!("CTIS{}", &id[0..14]);
-                        Some(SecIdBase{
-                            processed_id: processed_id.to_string(),
-                            sec_id_source: 110428, 
-                            sec_id_type_id: 11,
-                            sec_id_type: "Trial Registry ID".to_string(),
-                        })
-                    },
-                    None => {   // assumed EUCTR
-                        let id = &s[0];
-                        let processed_id = format!("EUCTR{}", &id[0..14]);
-                        Some(SecIdBase{
-                            processed_id: processed_id.to_string(),
-                            sec_id_source: 100123, 
-                            sec_id_type_id: 11,
-                            sec_id_type: "Trial Registry ID".to_string(),
-                        })
-                    },
-                }
-             },
-            None => None,  // no eu match at all
-        }
-    }
-
-    fn contains_isrctn(hay: &str) -> Option<SecIdBase> {
-        if hay.contains("ISRCTN") {
-            let mut hay2 = hay.replace("ISRCTN ", "ISRCTN").replace("(ISRCTN)", "");
-            hay2 = hay2.replace("ISRCTN(International", "ISRCTN");
-            hay2 = hay2.replace("ISRCTN: ", "ISRCTN");
-            hay2 = hay2.replace("ISRCTNISRCTN", "ISRCTN");
-            static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"ISRCTN[0-9]{8}").unwrap());
-            match RE.captures(&hay2) {
-                Some(s) => {
-                    let id = &s[0];
-                    Some(SecIdBase{
-                        processed_id: id.to_string(),
-                        sec_id_source: 100126, 
-                        sec_id_type_id: 11,
-                        sec_id_type: "Trial Registry ID".to_string(),
-                    })
-                },
-                None => None,
+            let id = &s[0];
+            if id == "NCT11111111" || id == "NCT99999999" 
+            || id == "NCT12345678" || id == "NCT87654321" {
+                None
             }
-        }
-        else {
-            None
-        }
-    }
-
-
-    fn contains_actrn(hay: &str) -> Option<SecIdBase> {
-        if hay.contains("ACTRN") {
-            static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"ACTRN[0-9]{14}").unwrap());
-            match RE.captures(hay) {
-                Some(s) => {
-                    let id = &s[0];
-                    Some(SecIdBase{
-                        processed_id: id.to_string(),
-                        sec_id_source: 100116, 
-                        sec_id_type_id: 11,
-                        sec_id_type: "Trial Registry ID".to_string(),
-                    })
-                },
-                None => None,
-            }
-        }
-        else {
-            None
-        }
-    }
-
-
-    fn contains_drks(hay: &str) -> Option<SecIdBase> {
-        if hay.contains("DRKS") {
-            static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"DRKS[0-9]{8}").unwrap());
-            match RE.captures(hay) {
-                Some(s) => {
-                    let id = &s[0];
-                    Some(SecIdBase{
-                        processed_id: id.to_string(),
-                        sec_id_source: 100124, 
-                        sec_id_type_id: 11,
-                        sec_id_type: "Trial Registry ID".to_string(),
-                    })
-                },
-                None => None,
-            }
-        }
-        else {
-            None
-        }
-    }
-
-
-    fn contains_ctri(hay: &str) -> Option<SecIdBase> {
-        if hay.contains("CTRI") {
-            static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"CTRI/[0-9]{4}/[0-9]{2,3}/[0-9]{6}").unwrap());
-            match RE.captures(hay) {
-                Some(s) => {
-                    let id = &s[0];
-                    let processed_id = id.replace("/", "-");  // internal representation for CTRI
-                    Some(SecIdBase{
-                        processed_id: processed_id,
-                        sec_id_source: 100120, 
-                        sec_id_type_id: 11,
-                        sec_id_type: "Trial Registry ID".to_string(),
-                    })
-                },
-                None => None,
-            }
-        }
-        else {
-            None
-        }
-    }
-
-
-    fn contains_who(hay: &str) -> Option<SecIdBase> {
-        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"1111-[0-9]{4}-[0-9]{4}").unwrap());
-        match RE.captures(hay) {
-            Some(s) => {
-                let id = &s[0];
-                let processed_id = format!("U{}", id);  // internal representation for CTRI
+            else {
                 Some(SecIdBase{
-                    processed_id: processed_id,
-                    sec_id_source: 100115, 
+                    processed_id: id.to_string(),
+                    sec_id_source: 100120, 
+                    sec_id_type_id: 11,
+                    sec_id_type: "Trial Registry ID".to_string(),
+                })
+            }
+        },
+            None => None,
+        }  
+    }
+    else {
+        None 
+    }
+}
+
+fn contains_euctr(hay: &str) -> Option<SecIdBase> {
+    static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"20[0-9]{2}-[0-9]{6}-[0-9]{2}").unwrap());
+    static RE_CTIS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"20[2-9][0-9]-5[0-9]{5}-[0-9]{2}").unwrap());
+    match RE.captures(hay) {
+        Some(s) => {
+            match RE_CTIS.captures(hay) {
+                Some (s1) => {
+                    let id = &s1[0];
+                    let processed_id = format!("CTIS{}", &id[0..14]);
+                    Some(SecIdBase{
+                        processed_id: processed_id.to_string(),
+                        sec_id_source: 110428, 
+                        sec_id_type_id: 11,
+                        sec_id_type: "Trial Registry ID".to_string(),
+                    })
+                },
+                None => {   // assumed EUCTR
+                    let id = &s[0];
+                    let processed_id = format!("EUCTR{}", &id[0..14]);
+                    Some(SecIdBase{
+                        processed_id: processed_id.to_string(),
+                        sec_id_source: 100123, 
+                        sec_id_type_id: 11,
+                        sec_id_type: "Trial Registry ID".to_string(),
+                    })
+                },
+            }
+            },
+        None => None,  // no eu match at all
+    }
+}
+
+fn contains_isrctn(hay: &str) -> Option<SecIdBase> {
+    if hay.contains("ISRCTN") {
+        let mut hay2 = hay.replace("ISRCTN ", "ISRCTN").replace("(ISRCTN)", "");
+        hay2 = hay2.replace("ISRCTN(International", "ISRCTN");
+        hay2 = hay2.replace("ISRCTN: ", "ISRCTN");
+        hay2 = hay2.replace("ISRCTNISRCTN", "ISRCTN");
+        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"ISRCTN[0-9]{8}").unwrap());
+        match RE.captures(&hay2) {
+            Some(s) => {
+                let id = &s[0];
+                Some(SecIdBase{
+                    processed_id: id.to_string(),
+                    sec_id_source: 100126, 
                     sec_id_type_id: 11,
                     sec_id_type: "Trial Registry ID".to_string(),
                 })
@@ -1067,45 +1004,102 @@ pub fn add_phase_features(phase: &String) -> Vec<WhoStudyFeature>
             None => None,
         }
     }
+    else {
+        None
+    }
+}
 
-    fn contains_umin(hay: &str) -> Option<SecIdBase> {
-        if hay.contains("UMIN") {
-            static RE1: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"UMIN[0-9]{9}").unwrap());
-            static RE2: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"UMIN-CTR[0-9]{9}").unwrap());
-            static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[0-9]{9}").unwrap());
-            if RE1.is_match(hay) || RE2.is_match(hay) {
-                match RE.captures(hay) {
-                    Some(s) => {
-                        let id = &s[0];
-                        let processed_id = format!("JPRN-UMIN{}", id);  
-                        Some(SecIdBase{
-                            processed_id: processed_id,
-                            sec_id_source: 100127, 
-                            sec_id_type_id: 11,
-                            sec_id_type: "Trial Registry ID".to_string(),
-                        })
-                    },
-                    None => None,
-                }
-            }
-            else {
-                None
-            }
-        }
-        else {
-            None
+fn contains_actrn(hay: &str) -> Option<SecIdBase> {
+    if hay.contains("ACTRN") {
+        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"ACTRN[0-9]{14}").unwrap());
+        match RE.captures(hay) {
+            Some(s) => {
+                let id = &s[0];
+                Some(SecIdBase{
+                    processed_id: id.to_string(),
+                    sec_id_source: 100116, 
+                    sec_id_type_id: 11,
+                    sec_id_type: "Trial Registry ID".to_string(),
+                })
+            },
+            None => None,
         }
     }
-    
+    else {
+        None
+    }
+}
 
-    fn contains_jcrt(hay: &str) -> Option<SecIdBase> {
-        if hay.contains("jRCT") {
-            static RE1: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"jRCTs[0-9]{9}").unwrap());
-            static RE2: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"jRCT[0-9]{10}").unwrap());
-            match RE1.captures(hay) {
-                Some(s1) => {
-                    let id = Some(&s1[0]);
-                    let processed_id = format!("JPRN-{:?}", id);  // internal representation for CTRI
+fn contains_drks(hay: &str) -> Option<SecIdBase> {
+    if hay.contains("DRKS") {
+        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"DRKS[0-9]{8}").unwrap());
+        match RE.captures(hay) {
+            Some(s) => {
+                let id = &s[0];
+                Some(SecIdBase{
+                    processed_id: id.to_string(),
+                    sec_id_source: 100124, 
+                    sec_id_type_id: 11,
+                    sec_id_type: "Trial Registry ID".to_string(),
+                })
+            },
+            None => None,
+        }
+    }
+    else {
+        None
+    }
+}
+
+fn contains_ctri(hay: &str) -> Option<SecIdBase> {
+    if hay.contains("CTRI") {
+        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"CTRI/[0-9]{4}/[0-9]{2,3}/[0-9]{6}").unwrap());
+        match RE.captures(hay) {
+            Some(s) => {
+                let id = &s[0];
+                let processed_id = id.replace("/", "-");  // internal representation for CTRI
+                Some(SecIdBase{
+                    processed_id: processed_id,
+                    sec_id_source: 100120, 
+                    sec_id_type_id: 11,
+                    sec_id_type: "Trial Registry ID".to_string(),
+                })
+            },
+            None => None,
+        }
+    }
+    else {
+        None
+    }
+}
+
+fn contains_who(hay: &str) -> Option<SecIdBase> {
+    static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"1111-[0-9]{4}-[0-9]{4}").unwrap());
+    match RE.captures(hay) {
+        Some(s) => {
+            let id = &s[0];
+            let processed_id = format!("U{}", id);  // internal representation for CTRI
+            Some(SecIdBase{
+                processed_id: processed_id,
+                sec_id_source: 100115, 
+                sec_id_type_id: 11,
+                sec_id_type: "Trial Registry ID".to_string(),
+            })
+        },
+        None => None,
+    }
+}
+
+fn contains_umin(hay: &str) -> Option<SecIdBase> {
+    if hay.contains("UMIN") {
+        static RE1: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"UMIN[0-9]{9}").unwrap());
+        static RE2: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"UMIN-CTR[0-9]{9}").unwrap());
+        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[0-9]{9}").unwrap());
+        if RE1.is_match(hay) || RE2.is_match(hay) {
+            match RE.captures(hay) {
+                Some(s) => {
+                    let id = &s[0];
+                    let processed_id = format!("JPRN-UMIN{}", id);  
                     Some(SecIdBase{
                         processed_id: processed_id,
                         sec_id_source: 100127, 
@@ -1113,38 +1107,39 @@ pub fn add_phase_features(phase: &String) -> Vec<WhoStudyFeature>
                         sec_id_type: "Trial Registry ID".to_string(),
                     })
                 },
-
-                None => {
-                    match RE2.captures(hay) {
-                        Some(s2) => {
-                            let id = Some(&s2[0]);
-                            let processed_id = format!("JPRN-{:?}", id);  // internal representation for CTRI
-                            Some(SecIdBase{
-                                processed_id: processed_id,
-                                sec_id_source: 100127, 
-                                sec_id_type_id: 11,
-                                sec_id_type: "Trial Registry ID".to_string(),
-                            })
-                        },
-                        None => None,
-                    }
-                }
+                None => None,
             }
         }
         else {
             None
         }
     }
+    else {
+        None
+    }
+}
 
+fn contains_jcrt(hay: &str) -> Option<SecIdBase> {
+    if hay.contains("jRCT") {
+        static RE1: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"jRCTs[0-9]{9}").unwrap());
+        static RE2: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"jRCT[0-9]{10}").unwrap());
+        match RE1.captures(hay) {
+            Some(s1) => {
+                let id = Some(&s1[0]);
+                let processed_id = format!("JPRN-{:?}", id);  // internal representation for CTRI
+                Some(SecIdBase{
+                    processed_id: processed_id,
+                    sec_id_source: 100127, 
+                    sec_id_type_id: 11,
+                    sec_id_type: "Trial Registry ID".to_string(),
+                })
+            },
 
-    fn contains_jprn(hay: &str) -> Option<SecIdBase> {
-        if hay.starts_with("JPRN") {
-            static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[0-9]{8}").unwrap());
-            if RE.is_match(hay) {
-                match RE.captures(hay) {
-                    Some(s) => {
-                        let id = &s[0];
-                        let processed_id = format!("JPRN-UMIN{}", id);  // internal representation for CTRI
+            None => {
+                match RE2.captures(hay) {
+                    Some(s2) => {
+                        let id = Some(&s2[0]);
+                        let processed_id = format!("JPRN-{:?}", id);  // internal representation for CTRI
                         Some(SecIdBase{
                             processed_id: processed_id,
                             sec_id_source: 100127, 
@@ -1155,129 +1150,151 @@ pub fn add_phase_features(phase: &String) -> Vec<WhoStudyFeature>
                     None => None,
                 }
             }
-            else {
+        }
+    }
+    else {
+        None
+    }
+}
+
+fn contains_jprn(hay: &str) -> Option<SecIdBase> {
+    if hay.starts_with("JPRN") {
+        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[0-9]{8}").unwrap());
+        if RE.is_match(hay) {
+            match RE.captures(hay) {
+                Some(s) => {
+                    let id = &s[0];
+                    let processed_id = format!("JPRN-UMIN{}", id);  // internal representation for CTRI
+                    Some(SecIdBase{
+                        processed_id: processed_id,
+                        sec_id_source: 100127, 
+                        sec_id_type_id: 11,
+                        sec_id_type: "Trial Registry ID".to_string(),
+                    })
+                },
+                None => None,
+            }
+        }
+        else {
+            Some(SecIdBase{
+                processed_id: hay.to_string(),
+                sec_id_source: 100127, 
+                sec_id_type_id: 11,
+                sec_id_type: "Trial Registry ID".to_string(),
+            })
+        }
+    }
+    else {
+        None
+    }
+}
+
+fn contains_nl(hay: &str) -> Option<SecIdBase> {
+    if hay.starts_with("NL") {
+        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^NL\d{1,4}$").unwrap());
+        match RE.captures(hay) {
+            Some(s) => {
+                let id = &s[0];
                 Some(SecIdBase{
-                    processed_id: hay.to_string(),
-                    sec_id_source: 100127, 
+                    processed_id: id.to_string(),
+                    sec_id_source: 100132, 
                     sec_id_type_id: 11,
                     sec_id_type: "Trial Registry ID".to_string(),
                 })
-            }
-        }
-        else {
-            None
+            },
+            None => None,
         }
     }
-        
+    else {
+        None
+    }
+}
 
-    fn contains_nl(hay: &str) -> Option<SecIdBase> {
-        if hay.starts_with("NL") {
-            static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^NL\d{1,4}$").unwrap());
-            match RE.captures(hay) {
-                Some(s) => {
-                    let id = &s[0];
-                    Some(SecIdBase{
-                        processed_id: id.to_string(),
-                        sec_id_source: 100132, 
-                        sec_id_type_id: 11,
-                        sec_id_type: "Trial Registry ID".to_string(),
-                    })
-                },
-                None => None,
-            }
-        }
-        else {
-            None
+fn contains_ntr(hay: &str) -> Option<SecIdBase> {
+    if hay.starts_with("NTR") {
+        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^NTR\d{1,4}$").unwrap());
+        match RE.captures(hay) {
+            Some(s) => {
+                let id = &s[0];
+                Some(SecIdBase{
+                    processed_id: id.to_string(),
+                    sec_id_source: 100132, 
+                    sec_id_type_id: 45,
+                    sec_id_type: "Obsolete NTR number".to_string(),
+                })
+            },
+            None => None,
         }
     }
+    else {
+        None
+    }
+}
 
-
-    fn contains_ntr(hay: &str) -> Option<SecIdBase> {
-        if hay.starts_with("NTR") {
-            static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^NTR\d{1,4}$").unwrap());
-            match RE.captures(hay) {
-                Some(s) => {
-                    let id = &s[0];
-                    Some(SecIdBase{
-                        processed_id: id.to_string(),
-                        sec_id_source: 100132, 
-                        sec_id_type_id: 45,
-                        sec_id_type: "Obsolete NTR number".to_string(),
-                    })
-                },
-                None => None,
-            }
-        }
-        else {
-            None
+fn contains_rpuec(hay: &str) -> Option<SecIdBase> {
+    if hay.starts_with("PER") {
+        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^PER-[0-9]{3}-").unwrap());
+        match RE.captures(hay) {
+            Some(_s) => { 
+                let id = hay;
+                Some(SecIdBase{
+                    processed_id: id.to_string(),
+                    sec_id_source: 100129, 
+                    sec_id_type_id: 11,
+                    sec_id_type: "Trial Registry ID".to_string(),
+                })
+            },
+            None => None,
         }
     }
+    else {
+        None
+    }
+}
 
+/* 
 
-    fn contains_rpuec(hay: &str) -> Option<SecIdBase> {
-        if hay.starts_with("PER") {
-            static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^PER-[0-9]{3}-").unwrap());
-            match RE.captures(hay) {
-                Some(_s) => { 
-                    let id = hay;
-                    Some(SecIdBase{
-                        processed_id: id.to_string(),
-                        sec_id_source: 100129, 
-                        sec_id_type_id: 11,
-                        sec_id_type: "Trial Registry ID".to_string(),
-                    })
-                },
-                None => None,
-            }
-        }
-        else {
-            None
+// transfer these to later processing - priority here is other registry ids
+
+fn contains_anvisa(hay: &str) -> Option<SecIdBase> {
+    if hay.starts_with("RBR") {
+        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[0-9]{8}.[0-9].[0-9]{4}.[0-9]{4}").unwrap());
+        match RE.captures(hay) {
+            Some(s) => {
+                let id = &s[0];
+                Some(SecIdBase{
+                    processed_id: id.to_string(),
+                    sec_id_source: 102000,  // Brazilian regulatory authority, ANVISA
+                    sec_id_type_id: 41,
+                    sec_id_type: "Regulatory Body ID".to_string(),
+                })},
+            None => None,
+        } 
+    }
+    else {
+        None
+    }
+}
+
+fn contains_brethics(hay: &str) -> Option<SecIdBase> {
+    if hay.starts_with("RBR") {
+        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[0-9].[0-9]{3}.[0-9]{3}").unwrap());
+        match RE.captures(hay) {
+            Some(s) => {
+                let id = &s[0];
+                Some(SecIdBase{
+                    processed_id: id.to_string(),
+                    sec_id_source: 102001,  // Brazilian ethics committee approval number
+                    sec_id_type_id: 12,
+                    sec_id_type: "Ethics Review ID".to_string(),
+                })},
+            None => None,
         }
     }
-
-    /* 
-
-    // transfer these to later processing - priority here is other registry ids
-
-    fn contains_anvisa(hay: &str) -> Option<SecIdBase> {
-        if hay.starts_with("RBR") {
-            static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[0-9]{8}.[0-9].[0-9]{4}.[0-9]{4}").unwrap());
-            match RE.captures(hay) {
-                Some(s) => {
-                    let id = &s[0];
-                    Some(SecIdBase{
-                        processed_id: id.to_string(),
-                        sec_id_source: 102000,  // Brazilian regulatory authority, ANVISA
-                        sec_id_type_id: 41,
-                        sec_id_type: "Regulatory Body ID".to_string(),
-                    })},
-                None => None,
-            } 
-        }
-        else {
-            None
-        }
+    else {
+        None
     }
-
-    fn contains_brethics(hay: &str) -> Option<SecIdBase> {
-        if hay.starts_with("RBR") {
-            static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[0-9].[0-9]{3}.[0-9]{3}").unwrap());
-            match RE.captures(hay) {
-                Some(s) => {
-                    let id = &s[0];
-                    Some(SecIdBase{
-                        processed_id: id.to_string(),
-                        sec_id_source: 102001,  // Brazilian ethics committee approval number
-                        sec_id_type_id: 12,
-                        sec_id_type: "Ethics Review ID".to_string(),
-                    })},
-                None => None,
-            }
-        }
-        else {
-            None
-        }
-    }
+}
 */
 
 
