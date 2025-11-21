@@ -1,85 +1,164 @@
 use sqlx::{Pool, Postgres};
 use crate::AppError;
 
-pub async fn create_table_list(pool: &Pool<Postgres>) -> Result<(), AppError> {
-  
-    let sql = r#"drop table if exists met.tables;
-            create table met.tables
-            (
-                table_name varchar
-                , source_id int4
-                , source_name varchar
-            );"#;
+use super::BasTable;
 
-    sqlx::raw_sql(&sql).execute(pool)
+
+pub async fn execute_sql(sql: &str, pool: &Pool<Postgres>) -> Result<u64, AppError> {
+
+    let res = sqlx::raw_sql(sql).execute(pool)
             .await.map_err(|e| AppError::SqlxError(e, sql.to_string()))?;
 
-    let sql = r#"insert into met.tables (table_name, source_id, source_name)
-            values 
-            ('anzctr', 100116, 'anzctr'),
-            ('chictr_ge_2020', 100118, 'chictr'),
-            ('chictr_lt_2020', 100118, 'chictr'),
-            ('cris', 100119, 'cris'),
-            ('ctg_2010_14', 100120, 'ctg'),
-            ('ctg_2015_19', 100120, 'ctg'),
-            ('ctg_2020_24', 100120, 'ctg'),
-            ('ctg_2025_29', 100120, 'ctg'),
-            ('ctg_lt_2010', 100120, 'ctg'),
-            ('ctis', 110428, 'ctis'),
-            ('ctri_ge_2020', 100121, 'ctri'),
-            ('ctri_lt_2020', 100121, 'ctri'),
-            ('drks', 100124, 'drks'),
-            ('euctr', 100123, 'euctr'),
-            ('irct', 100125, 'irct'),
-            ('isrctn',100126, 'isrctn'),
-            ('itmctr', 109108, 'itmctr'),
-            ('jprn_ge_2020', 100127, 'jprn'),
-            ('jprn_lt_2020', 100127, 'jprn'),
-            ('lebctr', 101989, 'lebctr'),
-            ('nntr', 100132, 'nntr'),
-            ('pactr', 100128, 'pactr'),
-            ('rebec', 100117, 'rebec'),
-            ('rpcec', 100122, 'rpcec'),
-            ('rpuec', 100129, 'rpuec'),
-            ('slctr', 100130, 'slctr'),
-            ('thctr', 100131, 'thctr');"#;
-
-    sqlx::raw_sql(&sql).execute(pool)
-            .await.map_err(|e| AppError::SqlxError(e, sql.to_string()))?;
-
-    Ok(())
+    Ok(res.rows_affected())
 }
 
 
-pub async fn set_up_reg_summ_tables(pool: &Pool<Postgres>) -> Result<(), AppError> {
+pub async fn set_up_data_tables(pool: &Pool<Postgres>) -> Result<(), AppError> {
   
+    let sql = r#"drop table if exists der.study_reg_numbers;
+    create table der.study_reg_numbers (
+          source_id  int4
+        , source_name varchar
+        , reg_year int4
+        , num int4
+    );"#;
+
+    execute_sql(sql, pool).await?;
+
+    let sql = r#"drop table if exists der.study_enrol_numbers;
+    create table der.study_enrol_numbers (
+          source_id  int4
+        , source_name varchar
+        , enrol_year int4
+        , num int4
+    );"#;
+
+    execute_sql(sql, pool).await?;
+
     let sql = r#"drop table if exists der.study_types;
     create table der.study_types (
-        source varchar
-        , study_type varchar
+          source_id  int4
+        , source_name varchar
+        , reg_year int4
+        , study_type_id int4
         , num int4
-    );
+    );"#;
 
-    drop table if exists der.study_statuses;
+    execute_sql(sql, pool).await?;
+
+    let sql = r#"drop table if exists der.study_statuses;
     create table der.study_statuses (
-        source varchar
-        , study_status varchar
+          source_id  int4
+        , source_name varchar
+        , reg_year int4
+        , study_status_id int4
         , num int4
-    );
+    );"#;
 
+    execute_sql(sql, pool).await?;
 
-    drop table if exists der.countries;
-    create table der.countries (
-        source varchar
+    let sql = r#"drop table if exists der.temp_unnested_countries;
+    create table der.temp_unnested_countries (
+          source_id  int4
+        , source_name varchar
+        , reg_year int4
+        , country varchar
+    );"#;
+
+    execute_sql(sql, pool).await?;
+
+    let sql = r#"drop table if exists der.study_countries;
+    create table der.study_countries (
+          source_id  int4
+        , source_name varchar
+        , reg_year int4
         , country varchar
         , num int4
     );"#;
 
-    sqlx::raw_sql(&sql).execute(pool)
-            .await.map_err(|e| AppError::SqlxError(e, sql.to_string()))?;
+    execute_sql(sql, pool).await?;
 
     Ok(())
 }
+
+
+pub async fn fetch_table_list(pool: &Pool<Postgres>) -> Result<Vec<BasTable>, AppError> {
+  
+  let sql = r#"select table_name, source_id, source_name
+        from met.tables
+        order by source_id;"#;
+
+  sqlx::query_as(&sql).fetch_all(pool).await
+             .map_err(|e| AppError::SqlxError(e, sql.to_string()))
+
+}
+
+
+pub async fn store_reg_numbers(entry: &BasTable, pool: &Pool<Postgres>) -> Result<u64, AppError> {
+
+    let sql = format!(r#"Insert into der.study_reg_numbers (source_id, source_name, reg_year, num)
+        select {}, '{}', reg_year, count(id)
+        from bas.{}
+        group by reg_year"#, entry.source_id, entry.source_name, entry.table_name);
+
+    execute_sql(&sql, pool).await
+}
+
+
+pub async fn store_enrol_numbers(entry: &BasTable, pool: &Pool<Postgres>) -> Result<u64, AppError> {
+
+    let sql = format!(r#"Insert into der.study_enrol_numbers (source_id, source_name, enrol_year, num)
+        select {}, '{}', enrol_year, count(id)
+        from bas.{}
+        group by enrol_year"#, entry.source_id, entry.source_name, entry.table_name);
+
+    execute_sql(&sql, pool).await
+}
+
+
+pub async fn store_type_numbers(entry: &BasTable, pool: &Pool<Postgres>) -> Result<u64, AppError> {
+
+    let sql = format!(r#"Insert into der.study_types (source_id, source_name, reg_year, study_type_id, num)
+        select {}, '{}', reg_year, study_type, count(id)
+        from bas.{}
+        group by reg_year, study_type "#, entry.source_id, entry.source_name, entry.table_name);
+
+    execute_sql(&sql, pool).await
+}
+
+
+pub async fn store_status_numbers(entry: &BasTable, pool: &Pool<Postgres>) -> Result<u64, AppError> {
+
+    let sql = format!(r#"Insert into der.study_statuses (source_id, source_name, reg_year, study_status_id, num)
+        select {}, '{}', reg_year, study_status, count(id)
+        from bas.{}
+        group by reg_year, study_status "#, entry.source_id, entry.source_name, entry.table_name);
+
+    execute_sql(&sql, pool).await
+}
+
+
+pub async fn unnest_country_lists(entry: &BasTable, pool: &Pool<Postgres>) -> Result<u64, AppError> {
+    let sql = format!(r#"Truncate table der.temp_unnested_countries;
+        Insert into der.temp_unnested_countries (source_id, source_name, reg_year, country)
+        select {}, '{}', reg_year, unnest(country_list)
+        from bas.{}
+        where country_list is not null"#, entry.source_id, entry.source_name, entry.table_name);
+
+      execute_sql(&sql, pool).await
+}
+
+
+pub async fn store_country_numbers(entry: &BasTable, pool: &Pool<Postgres>) -> Result<u64, AppError> {
+
+    let sql = format!(r#"Insert into der.study_countries (source_id, source_name, reg_year, country, num)
+        select {}, '{}', reg_year, country, count(source_id)
+        from der.temp_unnested_countries 
+        group by reg_year, country "#, entry.source_id, entry.source_name);
+
+    execute_sql(&sql, pool).await
+}
+
 
 
 /*

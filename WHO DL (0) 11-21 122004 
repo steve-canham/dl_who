@@ -1,0 +1,19 @@
+21/11 12:20:04  INFO            dl_who::setup::log_helper.78:  PROGRAM START
+21/11 12:20:04  INFO            dl_who::setup::log_helper.79:  
+21/11 12:20:04  INFO            dl_who::setup::log_helper.80:  ************************************
+21/11 12:20:04  INFO            dl_who::setup::log_helper.81:  
+21/11 12:20:04  INFO            dl_who::setup::log_helper.82:  download type: 0
+21/11 12:20:04  INFO            dl_who::setup::log_helper.83:  full DL file stem: 
+21/11 12:20:04  INFO            dl_who::setup::log_helper.84:  full DL file num: 0
+21/11 12:20:04  INFO            dl_who::setup::log_helper.85:  (previous) last file imported: 
+21/11 12:20:04  INFO            dl_who::setup::log_helper.86:  target file: ""
+21/11 12:20:04  INFO            dl_who::setup::log_helper.87:  csv data path: ""
+21/11 12:20:04  INFO            dl_who::setup::log_helper.88:  csv full data path: ""
+21/11 12:20:04  INFO            dl_who::setup::log_helper.89:  json data parth: ""
+21/11 12:20:04  INFO            dl_who::setup::log_helper.90:  log folder path: ""
+21/11 12:20:04  INFO            dl_who::setup::log_helper.92:  
+21/11 12:20:04  INFO            dl_who::setup::log_helper.93:  ************************************
+21/11 12:20:04  INFO            dl_who::setup::log_helper.94:  
+21/11 12:20:04  INFO   sqlx_postgres::connection::stream.185:  table "study_reg_numbers" does not exist, skipping
+21/11 12:20:04  INFO   sqlx_postgres::connection::stream.185:  table "study_enrol_numbers" does not exist, skipping
+21/11 12:20:04  INFO                               dl_who.13:  Done!

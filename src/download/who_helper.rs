@@ -254,13 +254,16 @@ pub fn get_status(status: &Option<String>) -> i32 {
 }
 
 
-pub fn get_conditions(condition_list: &String, source_id: i32) -> (Vec<String>, Vec<MeddraCondition>) {
+pub fn get_conditions(condition_list: &String, source_id: i32) -> (Option<Vec<String>>, Option<Vec<MeddraCondition>>) {
 
-    // replace line breaks and hashes with semi-colons, then split
+    // Replace line breaks and hashes with semi-colons, then split
 
     let mut clist = condition_list.replace("<br>", ";").replace("<br/>", ";");
     clist = clist.replace("#", ";");
     let sep_conds: Vec<&str> = clist.split(";").collect();
+    
+    // Set up vectors to receive possible conditions / meddra conditions
+
     let mut conds = Vec::<String>::new();
     let mut medra_conds = Vec::<MeddraCondition>::new();
 
@@ -270,7 +273,9 @@ pub fn get_conditions(condition_list: &String, source_id: i32) -> (Vec<String>, 
         let s1 = s.trim_matches(complex_trim);
         if s1 != "" && s1.len() >= 3
         {
-            if source_id == 100123  && s1.to_lowercase().starts_with("meddra") {
+            // For EMA data check for a structured MedDRA entry
+
+            if (source_id == 100123 || source_id == 110428) && s1.to_lowercase().starts_with("meddra") {
                 
                 // Of type (but without line breaks): 
                 // MedDRA version: 20.0  // Level: PT  // Classification code 10005003  // Term: Bladder cancer
@@ -324,24 +329,39 @@ pub fn get_conditions(condition_list: &String, source_id: i32) -> (Vec<String>, 
                 medra_conds.push(mc);
             }
             else {
+
+                // Simple condition - push strring to vector.
+
                 conds.push(s1.to_string());
             }
 
             // Most processing code for condition data now all moved to Harvester
             // module, as it is easier to correct and extend there (changes
-            // do not require global WHO re-download!).
-            // Conditions exported from here a a simple string array.
+            // do not require WHO re-download!).
+            // Conditions exported from here as a simple string array.
         }
     }
 
     // In some cases conditions are duplicated in the WHO list
-    // Duplication canm also occur of SOCs if mulitple MedDRA entries provided
+    // Duplication can also occur of SOCs if mulitple MedDRA entries provided
     // Therefore need to de-duplicate
 
     let mut uniques = HashSet::new();
     conds.retain(|e| uniques.insert(e.clone()));
 
-    (conds, medra_conds)    
+    // Convert vectors to Option<vector>
+
+    let conditions_option = match conds.len() {
+            0 => None,
+            _ => Some(conds)
+    };
+
+    let meddraconds_option = match medra_conds.len() {
+            0 => None,
+            _ => Some(medra_conds)
+    };
+
+    (conditions_option, meddraconds_option)    
 
 }
 
@@ -763,64 +783,47 @@ pub fn add_phase_features(phase: &String) -> Vec<WhoStudyFeature> {
 }
 
 
-pub fn  split_and_add_ids(existing_ids: &Vec::<SecondaryId>, sd_sid: &String, in_string: &String, source_field: &str) -> Vec<SecondaryId> {
+pub fn  split_ids(sd_sid: &String, in_string: &String, source_field: &str) -> Vec<SecondaryId> {
         
-        // in_string already known to be non-null, non-empty.
+    // in_string already known to be non-null, non-empty.
 
-        let ids: Vec<&str> = in_string.split(";").collect();
-        let mut id_list = Vec::<SecondaryId>::new();
+    let ids: Vec<&str> = in_string.split(";").collect();
+    let mut id_list = Vec::<SecondaryId>::new();
 
-        for s in ids
+    for s in ids
+    {
+        let complex_trim = |c| c==' '|| c =='\''|| c ==';'|| c=='‘'|| c=='’';
+        let secid = s.trim_matches(complex_trim);
+
+        if secid.len() >= 3 && secid != sd_sid
         {
-            let complex_trim = |c| c==' '|| c =='\''|| c ==';'|| c=='‘'|| c=='’';
-            let secid = s.trim_matches(complex_trim);
-
-            if secid.len() >= 3 && secid != sd_sid
+            let secid_low = secid.to_lowercase();
+            if secid_low.chars().any(|c| c.is_digit(10))    // has to include at least 1 number
+                && !secid_low.starts_with("none")
+                && !secid_low.starts_with("nil")
+                && !secid_low.starts_with("not ")
+                && !secid_low.starts_with("date")
+                && !secid_low.starts_with("version")
+                && !secid_low.starts_with("??")
             {
-                let secid_low = secid.to_lowercase();
-                if secid_low.chars().any(|c| c.is_digit(10))    // has to include at least 1 number
-                    && !secid_low.starts_with("none")
-                    && !secid_low.starts_with("nil")
-                    && !secid_low.starts_with("not ")
-                    && !secid_low.starts_with("date")
-                    && !secid_low.starts_with("version")
-                    && !secid_low.starts_with("??")
+                let sec_id_base = get_sec_id_details(secid);
+                
+                // Is the id the same as the sid? (With EUCTR may be, 
+                // because it is simply anoher country code variation)
+                // Has this id been added before?
+
+                if sec_id_base.processed_id != sd_sid.to_string()
                 {
-                    let sec_id_base = get_sec_id_details(secid);
-                   
-                    // Is the id the same as the sid? (With EUCTR may be, 
-                    // because it is simply anoher country code variation)
-                    // Has this id been added before?
-                  
-                    let mut add_id = true;
-
-                    if sec_id_base.processed_id == sd_sid.to_string() {
-                        add_id = false;
-                    }
-                    else if existing_ids.len() > 0
-                    {
-                        for s in existing_ids
-                        {
-                            if sec_id_base.processed_id == s.processed_id
-                            {
-                                add_id = false;
-                                break;
-                            }
-                        }
-                    }
-
-                    if add_id
-                    {
-                        id_list.push(SecondaryId::new_from_base(source_field.to_string(), 
-                                                    secid.to_string(), sec_id_base));
-                    }
+                    id_list.push(SecondaryId::new_from_base(source_field.to_string(), 
+                                                secid.to_string(), sec_id_base));
                 }
             }
         }
-
-        id_list  // may overlap ids with the ids from the other source fields
     }
-    
+
+    id_list  // may overlap ids with the ids from the other source fields
+}
+
 
 pub fn get_sec_id_details(sec_id: &str) -> SecIdBase {
 
@@ -862,19 +865,6 @@ pub fn get_sec_id_details(sec_id: &str) -> SecIdBase {
                 }
             }
         }
-
-        /*  
-
-        // transfer to later processing
-
-        if sid.is_none() && sd_sid.starts_with("RBR")
-        {
-            sid = contains_anvisa(sec_id);
-            if sid.is_none() {
-                sid = contains_brethics(sec_id);
-            }
-        }
-        */
                
         if sid.is_none() {    // still...
             

@@ -144,7 +144,7 @@ pub struct WHORecord
     pub meddra_condition_list: Option<Vec<MeddraCondition>>,
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
 #[allow(dead_code)]
 pub struct SecondaryId
 {
@@ -173,14 +173,14 @@ impl SecondaryId {
     }
   
     pub fn new_from_base(source_field: String, sec_id: String,
-                sid: SecIdBase)
+                sidbase: SecIdBase)
          -> Self {SecondaryId {  
             source_field,
             sec_id,
-            processed_id: sid.processed_id,
-            sec_id_source: sid.sec_id_source,
-            sec_id_type_id: sid.sec_id_type_id,
-            sec_id_type: sid.sec_id_type,
+            processed_id: sidbase.processed_id,
+            sec_id_source: sidbase.sec_id_source,
+            sec_id_type_id: sidbase.sec_id_type_id,
+            sec_id_type: sidbase.sec_id_type,
          }
     }
 

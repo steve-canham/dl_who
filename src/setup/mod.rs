@@ -361,6 +361,7 @@ src_db_name="who"
         let res = get_params(cli_pars, &config_string).unwrap();
         
         assert_eq!(res.dl_type, 501);
+        assert_eq!(res.doing_agg_only, false);
 
         assert_eq!(res.csv_data_path, PathBuf::from("/home/steve/Data/MDR source data/WHO"));
         assert_eq!(res.csv_full_path, PathBuf::from("/home/steve/Data/MDR source data/WHO/Full export 2025-02"));
@@ -707,4 +708,51 @@ src_db_name="who"
     }
 
 
+     #[test]
+    fn check_a_flag_gives_correct_params() {
+
+        let config = r#"
+[data]
+full_file_stem = "ICTRPFullExport "
+full_file_num = "22"
+last_file_imported = "20250106 ICTRP.csv"
+target_file = "dummy test ICTRP.csv"
+
+[folders]
+csv_data_path="/home/steve/Data/MDR source data/WHO"
+csv_full_path="/home/steve/Data/MDR source data/WHO/Full export 2025-02"
+json_data_path="/home/steve/Data/MDR json files/who"
+log_folder_path="/home/steve/Data/MDR/MDR_Logs/who"
+
+[database]
+db_host="localhost"
+db_user="user_name"
+db_password="password"
+db_port="5432"
+mon_db_name="mon"
+src_db_name="who"
+        "#;
+
+        let config_string = config.to_string();
+        config_reader::populate_config_vars(&config_string).unwrap();
+
+        let args : Vec<&str> = vec!["dummy target", "-a"];
+        let test_args = args.iter().map(|x| x.to_string().into()).collect::<Vec<OsString>>();
+        let cli_pars = cli_reader::fetch_valid_arguments(test_args).unwrap();
+
+        let res = get_params(cli_pars, &config_string).unwrap();
+        
+        assert_eq!(res.dl_type, 0);
+        assert_eq!(res.doing_agg_only, true);
+
+        assert_eq!(res.csv_data_path, PathBuf::from(""));
+        assert_eq!(res.csv_full_path, PathBuf::from(""));
+        assert_eq!(res.json_data_path, PathBuf::from(""));
+        assert_eq!(res.log_folder_path, PathBuf::from(""));
+        
+        assert_eq!(res.full_file_stem, "".to_string());
+        assert_eq!(res.full_file_num, 0);
+        assert_eq!(res.last_file_imported, "".to_string());
+        assert_eq!(res.target, "".to_string());
+    }
 }

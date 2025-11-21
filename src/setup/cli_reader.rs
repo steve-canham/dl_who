@@ -22,11 +22,24 @@ pub fn fetch_valid_arguments(args: Vec<OsString>) -> Result<CliPars, AppError>
     let target_file = parse_result.get_one::<String>("file").unwrap();
     let a_flag = parse_result.get_flag("a_flag");
 
-    Ok(CliPars {
-        dl_type: dl_type,
-        target_file: target_file.clone(),
-        doing_agg_only: a_flag,
-    }) 
+    // If the a (aggregate) flag is set blankj toe other parameters
+
+    let cli_args = if a_flag {
+        CliPars {
+            dl_type: 0,
+            target_file: "".to_string(),
+            doing_agg_only: true,
+        }
+    }
+    else {
+        CliPars {
+            dl_type: dl_type,
+            target_file: target_file.clone(),
+            doing_agg_only: false,
+        }
+    };
+
+    Ok(cli_args)
 }
 
 
@@ -40,16 +53,6 @@ pub fn config_file_exists()-> bool {
     res
 }
 
-/* 
-pub fn get_initalising_cli_pars() -> CliPars {
-    
-    CliPars {
-        dl_type: 501,
-        target_file: "".to_string(),
-        agg_data: false,
-    }
-}
-*/
 
 fn parse_args(args: Vec<OsString>) -> Result<ArgMatches, clap::Error> {
 
@@ -96,6 +99,7 @@ mod tests {
 
         assert_eq!(res.target_file, "");
         assert_eq!(res.dl_type, 501);
+        assert_eq!(res.doing_agg_only, false);
         
     }
   
@@ -133,6 +137,19 @@ mod tests {
 
         assert_eq!(res.target_file, "dummy file.csv");
         assert_eq!(res.dl_type, 503);
+    }
+
+    #[test]
+    fn check_cli_with_a_flag() {
+        let target = "dummy target";
+        let args : Vec<&str> = vec![target, "-a"];
+        let test_args = args.iter().map(|x| x.to_string().into()).collect::<Vec<OsString>>();
+
+        let res = fetch_valid_arguments(test_args).unwrap();
+
+        assert_eq!(res.target_file, "");
+        assert_eq!(res.dl_type, 0);
+        assert_eq!(res.doing_agg_only, true);
     }
    
 }

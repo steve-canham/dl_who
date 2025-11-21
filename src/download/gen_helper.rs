@@ -8,7 +8,7 @@ pub trait StringExtensions {
 
 pub trait DateExtensions {
     fn as_iso_date(&self) -> Option<String>;
-    fn get_time_units(&self) -> String; 
+    fn get_time_units(&self) -> Option<String>;
 }
 
 
@@ -300,10 +300,11 @@ impl DateExtensions for String {
     }
 
 
-    fn get_time_units(&self) -> String {
+    fn get_time_units(&self) -> Option<String> {
+        
         if self.trim() == ""
         {
-            return "".to_string();
+            return None;
         }
 
         let time_string = self.to_lowercase();
@@ -317,7 +318,7 @@ impl DateExtensions for String {
             _ if time_string.contains("min") => "Minutes",
             _ => &("Other (".to_string() + &time_string + ")"),
         };
-        return units.to_string()
+        return Some(units.to_string())
     }
 
 }

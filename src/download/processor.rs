@@ -1,14 +1,15 @@
-use regex::Regex;
 use std::sync::LazyLock;
+use regex::Regex;
 use log::error;
 use chrono::NaiveDate;
+use std::collections::HashSet;
 
 use super::who_helper::{get_db_name, get_source_id, get_type, get_status, 
     get_conditions, split_and_dedup_countries,
     add_int_study_features, add_obs_study_features, add_eu_design_features,
-    add_masking_features, add_phase_features, add_eu_phase_features, split_and_add_ids};
+    add_masking_features, add_phase_features, add_eu_phase_features, split_ids};
 use super::gen_helper::{StringExtensions, DateExtensions};
-use super::file_models::{WHOLine, WHORecord, WhoStudyFeature, SecondaryId, WHOSummary, MeddraCondition};
+use super::file_models::{WHOLine, WHORecord, WhoStudyFeature, SecondaryId, WHOSummary};
 
 
 pub fn process_line(w: WHOLine, summ: &WHOSummary) -> Option<WHORecord>  {
@@ -16,63 +17,50 @@ pub fn process_line(w: WHOLine, summ: &WHOSummary) -> Option<WHORecord>  {
     let source_id = summ.source_id;
     let study_type = summ.study_type;
 
-    let design_list = w.study_design.tidy();
-    let design_orig = design_list.clone();
-    let phase_statement = w.phase.tidy();
-    let phase_orig = phase_statement.clone();
+    let design_orig = w.study_design.tidy();
+    let phase_orig = w.phase.tidy();
 
     let condition_list = w.conditions.replace_unicodes();
-    let conditions_option: Option<Vec<String>>;
-    let meddraconds_option: Option<Vec<MeddraCondition>>;
-    if condition_list.is_some()
-    {
-        // Need a specific routine to deal with EUCTR and the MedDRA listings
+    let (conditions, meddraconds) = match condition_list  {
+        Some(cl) => {
+            get_conditions(&cl, source_id)
+        }, 
+        None => {
+            (None, None)
+        },
+    };
 
-        let conditions: Vec<String>;
-        let meddraconds: Vec<MeddraCondition>;
-
-        (conditions, meddraconds) = get_conditions(&condition_list.unwrap(), source_id);
-        conditions_option = match conditions.len() {
-            0 => None,
-            _ => Some(conditions)
-        };
-        meddraconds_option = match meddraconds.len() {
-            0 => None,
-            _ => Some(meddraconds)
-        };
-    }
-    else {
-        conditions_option = None;
-        meddraconds_option = None;
-    }
    
     let mut features = Vec::<WhoStudyFeature>::new();
 
-    if design_list.is_some()  {
-        let des_list = &design_list.unwrap().to_lowercase();
-        if study_type == 11
-        {
-            let mut fs = add_obs_study_features(des_list);
-            features.append(&mut fs);
-        }
-        else
-        {      
-            if source_id == 100123 {
-                let mut fs = add_eu_design_features(des_list);
+    match w.study_design.tidy() {
+       Some(dl) => {
+            let des_list = &dl.to_lowercase();
+            if study_type == 11
+            {
+                let mut fs = add_obs_study_features(des_list);
                 features.append(&mut fs);
             }
-            else {         
-                let mut fs = add_int_study_features(des_list);
-                features.append(&mut fs);
-                let mut fs = add_masking_features(des_list);
-                features.append(&mut fs);
+            else
+            {      
+                if source_id == 100123 {
+                    let mut fs = add_eu_design_features(des_list);
+                    features.append(&mut fs);
+                }
+                else {         
+                    let mut fs = add_int_study_features(des_list);
+                    features.append(&mut fs);
+                    let mut fs = add_masking_features(des_list);
+                    features.append(&mut fs);
+                }
             }
-        }
+       },
+       None => {},
     }
 
 
-    if phase_statement.is_some() {
-        let phase_statement = &phase_statement.unwrap().to_lowercase();
+    if let Some(dl) = w.phase.tidy() {
+        let phase_statement = &dl.to_lowercase();
         if source_id == 100123 {
             let mut fs = add_eu_phase_features(phase_statement);
             features.append(&mut fs);
@@ -81,9 +69,9 @@ pub fn process_line(w: WHOLine, summ: &WHOSummary) -> Option<WHORecord>  {
             let mut fs = add_phase_features(phase_statement);
             features.append(&mut fs);
         }
-        
     }
 
+ 
     let study_features = match features.len() {
         0 => None,
         _ => Some(features)
@@ -95,202 +83,150 @@ pub fn process_line(w: WHOLine, summ: &WHOSummary) -> Option<WHORecord>  {
     let mut agemax = w.age_max.tidy();
     let mut agemax_units: Option<String> = None;
 
+
     if source_id != 100123 {
 
-        if agemin.is_some()
-        {
-            let pat = r#"\d+"#;
-            let re = Regex::new(pat).unwrap();
-            let amin = agemin.unwrap();
-            if re.is_match(&amin) {
-                let caps = re.captures(&amin).unwrap();
-                let min = &caps[0];
-                agemin = Some(min.to_string());
+        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\d+").unwrap());
 
-                let min_units = amin.get_time_units();
-                if min_units != "".to_string() {
-                    agemin_units = Some(min_units);
+        (agemin, agemin_units)  =  match w.age_min.tidy() {
+
+            Some(am) => {
+                if RE.is_match(&am) {
+                    let caps = RE.captures(&am).unwrap();
+                    let min = &caps[0];
+                    (Some(min.to_string()), am.get_time_units())
                 }
-            }
-            else {
-                agemin = None;
-            }
-        }
-
-        if agemax.is_some()
-        {
-            let pat = r#"\d+"#;
-            let re = Regex::new(pat).unwrap();
-            let amax = agemax.unwrap();
-            if re.is_match(&amax) {
-                let caps = re.captures(&amax).unwrap();
-                let max = &caps[0];
-                agemax = Some(max.to_string());
-
-                let max_units = amax.get_time_units();
-                if max_units != "".to_string() {
-                    agemax_units = Some(max_units);
+                else {
+                    (None, None)
                 }
-            }
-            else {
-                agemax = None;
-            }
-        }
+            }, 
+
+            None => (None, None), 
+        };
+
+        (agemax, agemax_units)  =  match w.age_max.tidy() {
+
+            Some(am) => {
+                if RE.is_match(&am) {
+                    let caps = RE.captures(&am).unwrap();
+                    let max = &caps[0];
+                    (Some(max.to_string()), am.get_time_units())
+                }
+                else {
+                    (None, None)
+                }
+            }, 
+            None => (None, None), 
+        };
     }
+    
 
- 
-    let mut gender = w.gender.tidy();
-    if gender.is_some()
-    {
-        let gen = gender.unwrap().to_lowercase();
-        if gen.contains("both")
-        {
-            gender = Some("Both".to_string());
-        }
-        else
-        {
-            let f = gen.contains("female") || gen.contains("women") || gen == "f";
-            let mut gen2 = gen.clone();
-            if f {
-                gen2 = gen.replace("female", "").replace("women", "")
-            }
-            let m = gen2.contains("male") || gen.contains("men") || gen == "m";
-            
-            if m && f
+    let gender = match w.gender.tidy() {
+
+       Some(g) => {
+            let gen = g.to_lowercase();
+            if gen.contains("both")
             {
-                gender = Some("Both".to_string());
+                Some("Both".to_string())
             }
-            else if m {
-                gender = Some("Male".to_string());
-            }
-            else if f {
-                gender = Some("Female".to_string()); 
-            }
-            else if gen == "-" {
-                gender = None;
-            }
-            else // still no match...
+            else
             {
-                gender = Some(format!("?? Unable to classify ({})", gen));
-            }
-        }
-    }
-
-
-    let mut inc_crit = w.inclusion_criteria.tidy();
-    if inc_crit.is_some() {
-        let mut crit = inc_crit.unwrap();
-        if crit.to_lowercase().starts_with("inclusion criteria")
-        {
-            let complex_trim = |c| c == ' ' || c == ':' || c == ',';
-            crit = crit[18..].trim_matches(complex_trim).to_string();
-
-            if source_id == 100123  {
-
-                // remove last part of the ic
-
-                let f = crit.find("Are the trial subjects under 18?");
-                if f.is_some() {
-                    let pos = f.unwrap();
-                    let crit2 = crit[..pos].to_string();
-                    let age_data = crit[pos..].to_string();
-                    let mut children: bool = false;
-                    let mut adult: bool = false;
-                    let mut aged: bool = false;
-
-                    if age_data.contains("Are the trial subjects under 18? yes") {
-                        children = true;
-
-                    }
-                    if age_data.contains("F.1.2 Adults (18-64 years) yes") {
-                        adult = true;
-
-                    }
-                    if age_data.contains("F.1.3 Elderly (>=65 years) yes") {
-                        aged = true;
-                    }
-                    
-                    if children {
-                        agemin = None;
-                        agemin_units = None;
-
-                        if !adult {
-                            agemax = Some("17".to_string());
-                            agemax_units = Some("Years".to_string());
-                        }
-                        else {     // adult 
-                            if !aged {
-                                agemax = Some("64".to_string());
-                                agemax_units = Some("Years".to_string());
-                            }
-                            else {    // no upper limit
-                                agemax = None;
-                                agemax_units = None;
-                            }
-                        }
-                    }
-                    else {     // no children
-                        if adult {
-                            agemin = Some("18".to_string());
-                            agemin_units = Some("Years".to_string());
-
-                            if !aged {
-                                agemax = Some("64".to_string());
-                                agemax_units = Some("Years".to_string());
-                            }
-                            else {
-                                agemax = None;
-                                agemax_units = None;
-                            }
-                        }
-                        else {       // aged only
-                            agemin = Some("65".to_string());
-                            agemin_units = Some("Years".to_string());
-
-                            agemax = None;
-                            agemax_units = None;
-                        }
-                    }
-                    
-                    crit = crit2;
+                let f = gen.contains("female") || gen.contains("women") || gen == "f";
+                let mut gen2 = gen.clone();
+                if f {
+                    gen2 = gen.replace("female", "").replace("women", "")
+                }
+                let m = gen2.contains("male") || gen.contains("men") || gen == "m";
                 
+
+                if m && f
+                {
+                    Some("Both".to_string())
                 }
+                else if m {
+                    Some("Male".to_string())
+                }
+                else if f {
+                    Some("Female".to_string())
+                }
+                else if gen == "-" {
+                    None
+                }
+                else // still no match...
+                {
+                    Some(format!("?? Unable to classify ({})", gen))
+                }
+        }
+    },
+        None => None,
+    };
+
+
+    let inc_crit = match  w.inclusion_criteria.tidy() {
+        Some (mut s) => {
+            if s.to_lowercase().starts_with("inclusion criteria")
+            {
+                let complex_trim = |c| c == ' ' || c == ':' || c == ',';
+                s = s[18..].trim_matches(complex_trim).to_string();
             }
-        }
-        inc_crit = crit.replace_tags_and_unicodes();
-    }
 
-    let mut exc_crit = w.exclusion_criteria.tidy();
-    if exc_crit.is_some() {
-        let mut crit = exc_crit.unwrap();
-        if crit.to_lowercase().starts_with("exclusion criteria")
-        {
-            let complex_trim = |c| c == ' ' || c == ':' || c == ',';
-            crit = crit[18..].trim_matches(complex_trim).to_string();
-        }
-        exc_crit = crit.replace_tags_and_unicodes();
-    }
+            let mut crit = s.clone();
+            if source_id == 100123  {
+               if let Some(pos) = s.find("Are the trial subjects under 18?")
+               {
+                    (agemin, agemin_units, agemax, agemax_units) = get_euro_ages(&s[pos..].to_string());
+                     crit = s[..pos].to_string();
+               }
+            }
+            crit.replace_tags_and_unicodes() 
+        },
+        None => None,
+    };
 
+
+    let exc_crit = match  w.exclusion_criteria.tidy() {
+        Some (mut s) => {
+            if s.to_lowercase().starts_with("exclusion criteria")
+            {
+                let complex_trim = |c| c == ' ' || c == ':' || c == ',';
+                s = s[18..].trim_matches(complex_trim).to_string();
+            }
+            s.replace_tags_and_unicodes()
+        },
+        None => None,
+    };
+    
+
+     let ipd_plan = match w.results_ipd_plan.replace_tags_and_unicodes() {
+        Some (s) => {
+            let plan = s.to_lowercase();
+            if plan.len() < 11 || plan == "not available" || plan == "not avavilable" 
+                || plan == "not applicable" || plan.starts_with("justification or reason for")  
+            {
+                None
+            }
+            else {
+                Some(plan)
+            }
+        },
+        None => None,
+     };
    
-    let mut ipd_plan = w.results_ipd_plan.replace_tags_and_unicodes();
-    if ipd_plan.is_some() {
-         let plan = ipd_plan.clone().unwrap().to_lowercase();
-         if plan.len() < 11 || plan == "not available" || plan == "not avavilable" 
-            || plan == "not applicable" || plan.starts_with("justification or reason for")  
-        {
-            ipd_plan = None;
-        }
-    }
 
-    let mut ipd_description = w.results_ipd_description.replace_tags_and_unicodes();
-    if ipd_description.is_some() {
-         let desc = ipd_description.clone().unwrap().to_lowercase();
-         if desc.len() < 11 || desc == "not available" || desc == "not avavilable" 
-            || desc == "not applicable" || desc.starts_with("justification or reason for")  
-        {
-            ipd_description = None;
-        }
-    }
+     let ipd_description = match w.results_ipd_description.replace_tags_and_unicodes() {
+        Some (s) => {
+            let desc = s.to_lowercase();
+            if desc.len() < 11 || desc == "not available" || desc == "not avavilable" 
+                || desc == "not applicable" || desc.starts_with("justification or reason for")  
+            {
+                None
+            }
+            else {
+                Some(desc)
+            }
+        },
+        None => None,
+     };
    
     
     Some(WHORecord  {
@@ -348,8 +284,8 @@ pub fn process_line(w: WHOLine, summ: &WHOSummary) -> Option<WHORecord>  {
         country_list: summ.country_list.to_owned(),
         secondary_ids: summ.secondary_ids.to_owned(),
         study_features: study_features,
-        condition_list: conditions_option,
-        meddra_condition_list: meddraconds_option,
+        condition_list: conditions,
+        meddra_condition_list: meddraconds,
     })
 }
 
@@ -380,54 +316,60 @@ pub fn summarise_line(w: &WHOLine, dl_id: i32, line_number: i32) -> Option<WHOSu
         title = w.scientific_title.replace_unicodes();
     }
     
-    let study_type = w.study_type.tidy();
-    let stype = get_type(&study_type);
+    let stype = get_type(&w.study_type.tidy());
 
-    let status: i32;
-    if w.results_yes_no.to_lowercase() == "yes" {
-        status = 30;   // completed
+    let status = if w.results_yes_no.to_lowercase() == "yes" {
+        30   // completed
     }
     else {
-        let study_status = w.recruitment_status.tidy();
-        status = get_status(&study_status);
-    }
-    
-    let mut secondary_ids = Vec::<SecondaryId>::new();
+        get_status(&w.recruitment_status.tidy())
+    };
+ 
+
     let sec_ids = w.sec_ids.tidy();
-
-    if sec_ids.is_some()
-    {
-        let mut initial_ids = split_and_add_ids(&secondary_ids, &sd_sid, &sec_ids.unwrap(), "secondary ids");
-        secondary_ids.append(&mut initial_ids);
-    }
-        
+    let initial_ids = match sec_ids {
+        Some(s) => {
+            Some(split_ids(&sd_sid, &s, "secondary ids"))
+            },
+        None => None,
+    };
+  
     let bridging_flag = w.bridging_flag.tidy();
-    if bridging_flag.is_some() {
-        let mut br_flag = bridging_flag.unwrap();
-
-        if source_id == 100123 {
-            static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[0-9]{4}-[0-9]{6}-[0-9]{2}-").unwrap());
-            if RE.is_match(&br_flag) {
-                br_flag = br_flag[0..19].to_string() // lose country specific suffix
-            }
-        }
-        if br_flag != sd_sid
-        {
-            let mut bridge_ids = split_and_add_ids(&secondary_ids, &sd_sid, &br_flag, "bridging flag");
-            secondary_ids.append(&mut bridge_ids);
-        }
-    }
-
+    let bridge_ids =  match bridging_flag {
+        Some(s) => {
+                Some(split_ids(&sd_sid, &s, "bridging flag"))
+            },         
+        None => None,
+    };
+       
     let childs = w.childs.tidy();
-    if childs.is_some()
-    {
-        let mut child_ids = split_and_add_ids(&secondary_ids, &sd_sid, &childs.unwrap(), "bridged child recs");
-        secondary_ids.append(&mut child_ids);
+    let child_ids = match childs {
+        Some(s) => {
+            Some(split_ids(&sd_sid, &s, "bridged child recs"))
+            },
+        None => None,
+    };
+ 
+
+    let mut secondary_ids: Vec<SecondaryId> = Vec::new();
+
+    if let Some(mut v) = initial_ids {
+        secondary_ids.append(&mut v);
     }
+    if let Some(mut v) = bridge_ids {
+        secondary_ids.append(&mut v);
+    }
+    if let Some(mut v) = child_ids {
+        secondary_ids.append(&mut v);
+    }   
 
     let secids = match secondary_ids.len() {
-        0 => None,
-        _ => Some(secondary_ids)
+        0 => None, 
+        _ =>  {  
+                let mut uniques = HashSet::new();    // Dedup here
+                secondary_ids.retain(|e| uniques.insert(e.clone()));
+                Some(secondary_ids)
+            },
     };
    
 
@@ -484,15 +426,11 @@ pub fn summarise_line(w: &WHOLine, dl_id: i32, line_number: i32) -> Option<WHOSu
     
 
     let country_list = w.countries.tidy();
-    let countries: Option<Vec<String>>;
-    if country_list.is_some()
-    {
-        countries = split_and_dedup_countries(source_id, &country_list.unwrap());
-    }
-    else {
-        countries = None;
-    }
-  
+    let countries = match country_list {
+        Some(c) => {split_and_dedup_countries(source_id, &c)}
+        None => None,
+    };
+
     Some(WHOSummary {
         source_id: source_id, 
         sd_sid: sd_sid, 
@@ -508,7 +446,8 @@ pub fn summarise_line(w: &WHOLine, dl_id: i32, line_number: i32) -> Option<WHOSu
         date_enrolment: date_enrolment,
         enrol_year: enrol_year,
         enrol_month: enrol_month,
-        enrol_day: enrol_day,        results_yes_no: w.results_yes_no.tidy(),
+        enrol_day: enrol_day,        
+        results_yes_no: w.results_yes_no.tidy(),
         results_url_link: w.results_url_link.tidy(),
         results_url_protocol: w.results_url_protocol.tidy(),
         results_date_posted: res_posted,
@@ -560,3 +499,45 @@ fn split_iso_date (dt: &Option<String>) -> (i32, i32, i32) {
 }
 
 
+fn get_euro_ages(age_string: &String) -> (Option<String>, Option<String>, Option<String>, Option<String>) {
+            
+    let mut agemin= None;
+    let mut agemin_units: Option<String> = None;
+    let mut agemax= None;
+    let mut agemax_units: Option<String> = None;
+
+    let children: bool = if age_string.contains("Are the trial subjects under 18? yes") {true} else {false};
+    let adult: bool = if age_string.contains("F.1.2 Adults (18-64 years) yes") {true} else {false};
+    let aged: bool = if age_string.contains("F.1.3 Elderly (>=65 years) yes") {true} else {false};
+     
+    if children {
+        if !adult {
+            agemax = Some("17".to_string());
+            agemax_units = Some("Years".to_string());
+        }
+        else {   // adult 
+            if !aged {
+                agemax = Some("64".to_string());
+                agemax_units = Some("Years".to_string());
+            }
+        }
+    }
+    else {     // no children
+        if adult {
+            agemin = Some("18".to_string());
+            agemin_units = Some("Years".to_string());
+
+            if !aged {
+                agemax = Some("64".to_string());
+                agemax_units = Some("Years".to_string());
+            }
+        }
+        else {       // aged only
+            agemin = Some("65".to_string());
+            agemin_units = Some("Years".to_string());
+        }
+    }
+
+    (agemin, agemin_units, agemax, agemax_units) 
+
+}
