@@ -21,17 +21,21 @@ use log4rs::{
 };
 
 
-pub fn setup_log (data_folder: &PathBuf, dl_type: i32) -> Result<log4rs::Handle, AppError> {
-    let log_file_path = get_log_file_path(data_folder, dl_type);
+pub fn setup_log (log_folder: &PathBuf, dl_type: i32) -> Result<log4rs::Handle, AppError> {
+    let log_file_path = get_log_file_path(log_folder, dl_type);
     config_log (&log_file_path)
 }
 
-fn get_log_file_path(data_folder: &PathBuf, dl_type: i32) -> PathBuf {
-    
+fn get_log_file_path(log_folder: &PathBuf, dl_type: i32) -> PathBuf {
+
     let datetime_string = Local::now().format("%m-%d %H%M%S").to_string();
-    let log_file_name = format!("WHO DL ({}) {} ", dl_type, datetime_string);
-    [data_folder, &PathBuf::from(&log_file_name)].iter().collect()
-    
+    let log_file_name = if dl_type == 0 {
+        format!("WHO DL - aggregation {}", datetime_string)
+    }
+    else {
+        format!("WHO DL ({}) {}", dl_type, datetime_string)
+    };
+    [log_folder, &PathBuf::from(&log_file_name)].iter().collect()
 }
 
 fn config_log (log_file_path: &PathBuf) -> Result<log4rs::Handle, AppError> {
@@ -80,13 +84,20 @@ pub fn log_startup_params (ip : &InitParams) {
     info!("************************************");
     info!("");
     info!("download type: {}", ip.dl_type.to_string());
-    info!("full DL file stem: {}", ip.full_file_stem);
-    info!("full DL file num: {}", ip.full_file_num.to_string());
-    info!("(previous) last file imported: {}", ip.last_file_imported);
-    info!("target file: {:?}", ip.target);
-    info!("csv data path: {:?}", ip.csv_data_path);
-    info!("csv full data path: {:?}", ip.csv_full_path);
-    info!("json data parth: {:?}", ip.json_data_path);
+
+    if ip.dl_type == 0 {
+        info!("** data aggregation **");
+    }
+    else
+    {
+        info!("full DL file stem: {}", ip.full_file_stem);
+        info!("full DL file num: {}", ip.full_file_num.to_string());
+        info!("(previous) last file imported: {}", ip.last_file_imported);
+        info!("target file: {:?}", ip.target);
+        info!("csv data path: {:?}", ip.csv_data_path);
+        info!("csv full data path: {:?}", ip.csv_full_path);
+        info!("json data parth: {:?}", ip.json_data_path);
+    }
     info!("log folder path: {:?}", ip.log_folder_path);
 
     info!("");

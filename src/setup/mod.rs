@@ -54,7 +54,7 @@ pub fn get_params(cli_pars: CliPars, config_string: &String) -> Result<InitParam
     
     if cli_pars.doing_agg_only {
 
-        // File related parameters become irrelevant
+        // File related parameters become irrelevant (apart from the log file)
 
         Ok(InitParams {
             dl_type: 0,
@@ -65,8 +65,8 @@ pub fn get_params(cli_pars: CliPars, config_string: &String) -> Result<InitParam
             csv_data_path: empty_pb.clone(),
             csv_full_path: empty_pb.clone(),
             json_data_path: empty_pb.clone(),
-            log_folder_path: empty_pb.clone(),
-            doing_agg_only: cli_pars.doing_agg_only,
+            log_folder_path: folder_pars.log_folder_path,
+            doing_agg_only: true,
 
         })
 
@@ -340,7 +340,7 @@ target_file = "dummy test ICTRP.csv"
 csv_data_path="/home/steve/Data/MDR source data/WHO"
 csv_full_path="/home/steve/Data/MDR source data/WHO/Full export 2025-02"
 json_data_path="/home/steve/Data/MDR json files/who"
-log_folder_path="/home/steve/Data/MDR/MDR_Logs/who"
+log_folder_path="/home/steve/Data/MDR_Logs/who"
 
 [database]
 db_host="localhost"
@@ -366,7 +366,7 @@ src_db_name="who"
         assert_eq!(res.csv_data_path, PathBuf::from("/home/steve/Data/MDR source data/WHO"));
         assert_eq!(res.csv_full_path, PathBuf::from("/home/steve/Data/MDR source data/WHO/Full export 2025-02"));
         assert_eq!(res.json_data_path, PathBuf::from("/home/steve/Data/MDR json files/who"));
-        assert_eq!(res.log_folder_path, PathBuf::from("/home/steve/Data/MDR/MDR_Logs/who"));
+        assert_eq!(res.log_folder_path, PathBuf::from("/home/steve/Data/MDR_Logs/who"));
         
         assert_eq!(res.full_file_stem, "ICTRPFullExport ");
         assert_eq!(res.full_file_num, 22);
@@ -387,7 +387,7 @@ target_file = "20250210 ICTRP.csv"
 csv_data_path="/home/steve/Data/MDR source data/WHO"
 csv_full_path="/home/steve/Data/MDR source data/WHO/Full Export 2025-02"
 json_data_path="/home/steve/Data/MDR json files/who"
-log_folder_path="/home/steve/Data/MDR/MDR_Logs/who"
+log_folder_path="/home/steve/Data/MDR_Logs/who"
 
 [database]
 db_host="localhost"
@@ -411,7 +411,7 @@ src_db_name="who"
         assert_eq!(res.csv_data_path, PathBuf::from("/home/steve/Data/MDR source data/WHO"));
         assert_eq!(res.csv_full_path, PathBuf::from("/home/steve/Data/MDR source data/WHO/Full Export 2025-02"));
         assert_eq!(res.json_data_path, PathBuf::from("/home/steve/Data/MDR json files/who"));
-        assert_eq!(res.log_folder_path, PathBuf::from("/home/steve/Data/MDR/MDR_Logs/who"));
+        assert_eq!(res.log_folder_path, PathBuf::from("/home/steve/Data/MDR_Logs/who"));
 
         assert_eq!(res.full_file_stem, "ICTRPFullExport ");
         assert_eq!(res.full_file_num, 22);
@@ -429,7 +429,7 @@ last_file_imported = "20250106 ICTRP.csv"
 [folders]
 csv_data_path="/home/steve/Data/MDR source data/WHO"
 json_data_path="/home/steve/Data/MDR json files/who"
-log_folder_path="/home/steve/Data/MDR/MDR_Logs/who"
+log_folder_path="/home/steve/Data/MDR_Logs/who"
 
 [database]
 db_host="localhost"
@@ -451,7 +451,7 @@ src_db_name="who"
         assert_eq!(res.dl_type, 501);
         assert_eq!(res.csv_data_path, PathBuf::from("/home/steve/Data/MDR source data/WHO"));
         assert_eq!(res.json_data_path, PathBuf::from("/home/steve/Data/MDR json files/who"));
-        assert_eq!(res.log_folder_path, PathBuf::from("/home/steve/Data/MDR/MDR_Logs/who"));
+        assert_eq!(res.log_folder_path, PathBuf::from("/home/steve/Data/MDR_Logs/who"));
         assert_eq!(res.last_file_imported, "20250106 ICTRP.csv");
     }
 
@@ -465,7 +465,7 @@ last_file_imported = "20250106 ICTRP.csv"
 
 [folders]
 json_data_path="/home/steve/Data/MDR json files/who"
-log_folder_path="/home/steve/Data/MDR/MDR_Logs/who"
+log_folder_path="/home/steve/Data/MDR_Logs/who"
 
 [database]
 db_host="localhost"
@@ -495,7 +495,7 @@ src_db_name="who"
 [folders]
 csv_data_path="/home/steve/Data/MDR source data/WHO"
 json_data_path="/home/steve/Data/MDR json files/who"
-log_folder_path="/home/steve/Data/MDR/MDR_Logs/who"
+log_folder_path="/home/steve/Data/MDR_Logs/who"
 
 [database]
 db_host="localhost"
@@ -525,7 +525,7 @@ full_file_num = "22"
 [folders]
 csv_full_path="/home/steve/Data/MDR source data/WHO/Full Export 2025-02"
 json_data_path="/home/steve/Data/MDR json files/who"
-log_folder_path="/home/steve/Data/MDR/MDR_Logs/who"
+log_folder_path="/home/steve/Data/MDR logs/who"
 
 [database]
 db_host="localhost"
@@ -547,7 +547,7 @@ src_db_name="who"
         assert_eq!(res.dl_type, 502);
         assert_eq!(res.csv_full_path, PathBuf::from("/home/steve/Data/MDR source data/WHO/Full Export 2025-02"));
         assert_eq!(res.json_data_path, PathBuf::from("/home/steve/Data/MDR json files/who"));
-        assert_eq!(res.log_folder_path, PathBuf::from("/home/steve/Data/MDR/MDR_Logs/who"));
+        assert_eq!(res.log_folder_path, PathBuf::from("/home/steve/Data/MDR logs/who"));
         assert_eq!(res.full_file_stem, "ICTRPFullExport ");
         assert_eq!(res.full_file_num, 22);
     }
@@ -562,7 +562,7 @@ full_file_num = "22"
 
 [folders]
 json_data_path="/home/steve/Data/MDR json files/who"
-log_folder_path="/home/steve/Data/MDR/MDR_Logs/who"
+log_folder_path="/home/steve/Data/MDR_Logs/who"
 
 [database]
 db_host="localhost"
@@ -591,7 +591,7 @@ src_db_name="who"
 
 [folders]
 json_data_path="/home/steve/Data/MDR json files/who"
-log_folder_path="/home/steve/Data/MDR/MDR_Logs/who"
+log_folder_path="/home/steve/Data/MDR_Logs/who"
 
 [database]
 db_host="localhost"
@@ -621,7 +621,7 @@ target_file = "dummy test ICTRP.csv"
 [folders]
 csv_data_path="/home/steve/Data/MDR source data/WHO"
 json_data_path="/home/steve/Data/MDR json files/who"
-log_folder_path="/home/steve/Data/MDR/MDR_Logs/who"
+log_folder_path="/home/steve/Data/MDR_Logs/who"
 
 [database]
 db_host="localhost"
@@ -643,7 +643,7 @@ src_db_name="who"
         assert_eq!(res.dl_type, 503);
         assert_eq!(res.csv_data_path, PathBuf::from("/home/steve/Data/MDR source data/WHO"));
         assert_eq!(res.json_data_path, PathBuf::from("/home/steve/Data/MDR json files/who"));
-        assert_eq!(res.log_folder_path, PathBuf::from("/home/steve/Data/MDR/MDR_Logs/who"));
+        assert_eq!(res.log_folder_path, PathBuf::from("/home/steve/Data/MDR_Logs/who"));
         assert_eq!(res.target, "dummy test ICTRP.csv");
     }
 
@@ -657,7 +657,7 @@ target_file = "dummy test ICTRP.csv"
 
 [folders]
 json_data_path="/home/steve/Data/MDR json files/who"
-log_folder_path="/home/steve/Data/MDR/MDR_Logs/who"
+log_folder_path="/home/steve/Data/MDR_Logs/who"
         
 [database]
 db_host="localhost"
@@ -687,7 +687,7 @@ src_db_name="who"
 [folders]
 csv_data_path="/home/steve/Data/MDR source data/WHO"
 json_data_path="/home/steve/Data/MDR json files/who"
-log_folder_path="/home/steve/Data/MDR/MDR_Logs/who"
+log_folder_path="/home/steve/Data/MDR_Logs/who"
         
 [database]
 db_host="localhost"
@@ -722,7 +722,7 @@ target_file = "dummy test ICTRP.csv"
 csv_data_path="/home/steve/Data/MDR source data/WHO"
 csv_full_path="/home/steve/Data/MDR source data/WHO/Full export 2025-02"
 json_data_path="/home/steve/Data/MDR json files/who"
-log_folder_path="/home/steve/Data/MDR/MDR_Logs/who"
+log_folder_path="/home/steve/Data/MDR logs/who"
 
 [database]
 db_host="localhost"
@@ -748,7 +748,7 @@ src_db_name="who"
         assert_eq!(res.csv_data_path, PathBuf::from(""));
         assert_eq!(res.csv_full_path, PathBuf::from(""));
         assert_eq!(res.json_data_path, PathBuf::from(""));
-        assert_eq!(res.log_folder_path, PathBuf::from(""));
+        assert_eq!(res.log_folder_path, PathBuf::from("/home/steve/Data/MDR logs/who"));
         
         assert_eq!(res.full_file_stem, "".to_string());
         assert_eq!(res.full_file_num, 0);

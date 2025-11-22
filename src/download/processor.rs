@@ -325,43 +325,28 @@ pub fn summarise_line(w: &WHOLine, dl_id: i32, line_number: i32) -> Option<WHOSu
         get_status(&w.recruitment_status.tidy())
     };
  
-
-    let sec_ids = w.sec_ids.tidy();
-    let initial_ids = match sec_ids {
-        Some(s) => {
-            Some(split_ids(&sd_sid, &s, "secondary ids"))
-            },
-        None => None,
-    };
-  
-    let bridging_flag = w.bridging_flag.tidy();
-    let bridge_ids =  match bridging_flag {
-        Some(s) => {
-                Some(split_ids(&sd_sid, &s, "bridging flag"))
-            },         
-        None => None,
-    };
-       
-    let childs = w.childs.tidy();
-    let child_ids = match childs {
-        Some(s) => {
-            Some(split_ids(&sd_sid, &s, "bridged child recs"))
-            },
-        None => None,
-    };
- 
-
     let mut secondary_ids: Vec<SecondaryId> = Vec::new();
 
-    if let Some(mut v) = initial_ids {
-        secondary_ids.append(&mut v);
+    if let Some(s) = w.sec_ids.tidy()  {
+        let initial_ids = Some(split_ids(&sd_sid, &s, "secondary ids"));
+        if let Some(mut ids) = initial_ids {
+            secondary_ids.append(&mut ids);
+        }
     }
-    if let Some(mut v) = bridge_ids {
-        secondary_ids.append(&mut v);
+    
+    if let Some(s) = w.bridging_flag.tidy() {
+        let bridge_ids = Some(split_ids(&sd_sid, &s, "bridging flag"));
+        if let Some(mut ids) = bridge_ids {
+            secondary_ids.append(&mut ids);
+        }
     }
-    if let Some(mut v) = child_ids {
-        secondary_ids.append(&mut v);
-    }   
+
+    if let Some(s) = w.childs.tidy()  {
+        let child_ids = Some(split_ids(&sd_sid, &s, "bridged child recs"));
+        if let Some(mut ids) = child_ids {
+            secondary_ids.append(&mut ids);
+        }
+    }
 
     let secids = match secondary_ids.len() {
         0 => None, 
