@@ -106,21 +106,22 @@ pub async fn store_who_summary(rec: WHOSummary, full_path: PathBuf, pool: &Pool<
         
         sql = "Update bas.".to_string() + &rec.table_name + 
                         r#" SET source_id = $1, remote_url = $2, title = $4, 
-                        study_type = $5, study_status = $6, reg_sec_ids = $7, oth_sec_ids = $8, 
-                        reg_year = $9, reg_month = $10, reg_day = $11, 
-                        enrol_year = $12, enrol_month = $13, enrol_day = $14,
-                        results_yes_no = $15, results_url_link = $16, results_url_protocol = $17,  
-                        results_date_posted = $18, results_date_first_pub = $19, results_date_completed = $20, 
-                        country_list = $21, last_revised_in_who = $22, last_who_dl_id = $23,
-                        last_edited_in_sys = $24, local_path = $25
+                        study_type = $5, study_type_id = $6, study_status = $7, study_status_id = $8, 
+                        reg_sec_ids = $9, oth_sec_ids = $10, 
+                        reg_year = $11, reg_month = $12, reg_day = $13, 
+                        enrol_year = $14, enrol_month = $15, enrol_day = $16,
+                        results_yes_no = $17, results_url_link = $18, results_url_protocol = $19,  
+                        results_date_posted = $20, results_date_first_pub = $21, results_date_completed = $22, 
+                        country_list = $23, last_revised_in_who = $24, last_who_dl_id = $25,
+                        last_edited_in_sys = $26, local_path = $26
                         where sd_sid = $3"#;
     }
     else {
             
         // Create as a new record.
 
-        sql = "INSERT INTO bas.".to_string() + &rec.table_name + 
-                    r#" (source_id, remote_url, sd_sid, title, study_type, study_status, 
+        sql = "Insert into bas.".to_string() + &rec.table_name + r#"(source_id, remote_url, sd_sid, title, 
+                    study_type, study_type_id, study_status, study_status_id, 
                     reg_sec_ids, oth_sec_ids, 
                     reg_year, reg_month, reg_day, enrol_year, enrol_month, enrol_day,
                     results_yes_no, results_url_link, results_url_protocol, 
@@ -129,13 +130,13 @@ pub async fn store_who_summary(rec: WHOSummary, full_path: PathBuf, pool: &Pool<
                 VALUES
                 ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 
                 $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
-                $21, $22, $23, $24, $25)"#;
+                $21, $22, $23, $24, $25, $26, $27)"#;
     }
 
     sqlx::query(&sql)
     .bind(rec.source_id).bind(rec.remote_url)
     .bind(rec.sd_sid).bind(rec.title)
-    .bind(rec.study_type).bind(rec.study_status)
+    .bind(rec.study_type).bind(rec.study_type_id).bind(rec.study_status).bind(rec.study_status_id)
     .bind(reg_ids).bind(oth_ids)
     .bind(rec.reg_year).bind(rec.reg_month).bind(rec.reg_day)
     .bind(rec.enrol_year).bind(rec.enrol_month).bind(rec.enrol_day)

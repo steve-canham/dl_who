@@ -88,171 +88,137 @@ pub fn split_by_year (source_id: i32) -> bool {
 }
 
 
-pub fn get_type(study_type: &Option<String>) -> i32 {
-    
-    if study_type.is_some() 
+pub fn get_type(study_type: &String) -> i32 {
+
+    let t = study_type.to_lowercase();
+    if t.starts_with("intervention") || t == "ba/be"
     {
-        let ts: &str;
-        let t = study_type.clone().unwrap().to_lowercase();
-        if t.starts_with("intervention")
-            || t == "BA/BE"
-        {
-            ts = "Interventional";
-        }
-        else if t.starts_with("observation")
-              || t.starts_with("epidem")
-              || t == "PMS"
-              || t == "Relative factors research"
-              || t == "Cause"
-              || t == "Cause/Relative factors study"
-              || t == "Health Services Research"
-              || t == "Health services reaserch"
-        {
-            ts = "Observational";
-        }
-        else if t == "Expanded Access"
-        {
-            ts = "Expanded Access";
-        }
-        else if t == "Diagnostic test"
-        {
-            ts = "Diagnostic test";
-        }
-        else if t == "Not Specified" || t == "N/A" {
-            ts = "Not provided";
-        }
-        else if t  ==  "Other" 
-             || t  == "Others,meta-analysis etc" 
-             || t.to_lowercase()  == "basic science"
-             || t  == "Prevention"
-             || t  == "Screening"
-             || t == "Treatment study"
-        {
-            ts = "Other";
-        }
-        else  
-        {
-            //stype == "Not Specified" || stype == "N/A" 
-            ts = "Not provided";
-        }
-        
-        // Other changed from 16 to 99
-        // Diagnostic test added
-
-        match ts {
-            "Interventional" => 11, 
-            "Observational" => 12,
-            "Observational patient registry" => 13,
-            "Expanded Access" => 14,
-            "Funded programme" => 15,
-            "Diagnostic test" => 16,
-            "Other" => 99,
-            "Not provided" => 0,
-            _ => 99
-        }
+        11
+    }
+    else if t.starts_with("observation")
+            || t.starts_with("epidem")
+            || t == "pms"
+            || t == "relative factors research"
+            || t == "cause"
+            || t == "cause/relative factors study"
+            || t == "health services research"
+            || t == "health services reaserch"
+    {
+        12
+    }
+    else if t == "patient registry" || t == "observational patient registry"  
+    || t == "observational [patient registry]"
+    {
+        13
+    }
+    else if t == "expanded access"
+    {
+        14
+    }
+    else if t == "funded programme"
+    {
+        15
+    }
+    else if t == "diagnostic test"
+    {
+        16
+    }
+    else if t == "not applicable" || t == "n/a" {
+        98
+    }
+    else if t == "not specified" || t == "unknown" || t == "not provided" {
+        0
+    }
+    else if t  ==  "other" 
+            || t  == "others,meta-analysis etc" 
+            || t  == "basic science"
+            || t  == "prevention"
+            || t  == "screening"
+            || t == "treatment study"
+    {
+        99
     }
     else {
-        0
+        999
     }
 }
 
 
-pub fn get_status(status: &Option<String>) -> i32 {
+pub fn get_status(status: &String, source_id: i32) -> i32 {
 
-    if status.is_some() {
-        let ss: &str;
-        let s = status.clone().unwrap().to_lowercase();
-        if s.len() > 5  {
-            if s == "complete" || s == "completed" 
-                || s == "complete: follow-up complete" || s == "complete: follow up complete" 
-                || s == "data analysis completed" || s == "main results already published"
-                || s == "approved for marketing"
-            {
-                ss = "Completed";
-            }
-            else if s == "complete: follow-up continuing" 
-                || s == "complete: follow up continuing" || s == "active, not recruiting" 
-                || s == "closed to recruitment of participants" || s == "no longer recruiting" 
-                || s == "not recruiting" || s == "recruitment completed"
-                || s == "enrollment closed"
-                || s == "recruiting stopped after recruiting started"
-            {
-                ss = "No longer recruiting";
-            }
-            else if s == "recruiting" || s =="open public recruiting" 
-            || s == "open to recruitment" || s =="in enrollment"
-            {
-                ss = "Recruiting";
-            }
-            else if s.contains("pending")
-                || s == "not yet recruiting"
-                || s == "without startig enrollment"
-                || s == "preinitiation"
-            {
-                ss = "Not yet recruiting";
-            }
-            else if s.contains("suspended")
-                || s.contains("temporarily closed")
-                || s == "temporary halt"
-                || s == "temporarily not available"
-            {
-                ss = "Suspended";
-            }
-            else if s.contains("terminated")
-                || s.contains("stopped early")
-                || s == "stopped"
-            {
-                ss = "Terminated";
-            }
-            else if s.contains("withdrawn")
-            {
-                ss = "Withdrawn";
-            }
-            else if s.contains("enrolling by invitation")
-            {
-                ss = "Enrolling by invitation";
-            }
-            else if s == "ongoing" 
-                    || s == "authorised-recruitment may be ongoing or finished" 
-                    || s == "available"
-            {
-                ss = "Ongoing, recruitment status unclear";
-            }
-            else if s == "not applicable" {
-                ss = "Recorded as not applicable";
-            }
-            else
-            {
-                // = 'withheld', or = 'unknown', or = 'no longer available'
-                // or = 'deleted from source registry', or = 'unknown status'
-                // or 'temporarily not available'
-                ss = "Not provided";
-            }
-        }
-        else {
-            ss = "Not provided";
-        }
+    // to clarify, need to check exact meaning of terms as used by CGT and EMA in particuolar
+    // to distinguish whether terms apply to recruitment or to the study as a whole
+    // raise the issue of categorising the terms according to the source id...
 
-        match ss {
-            "Not yet recruiting"=> 10,
-            "Withdrawn"=> 12,
-            "Recruiting"=> 14,
-            "Enrolling by invitation"=> 16,
-            "No longer recruiting" => 18,
-            "Ongoing, recruitment status unclear"=> 20,            
-            "Suspended"=> 25,
-            "Completed" => 30,
-            "Terminated"=> 32,
-            "Recorded as not applicable"=> 99,
-            "Not provided"=> 0,
-            _ => 0
-           }
-        }
+    // For CTG (and ANZCTR) 'Completed' means the whole study is completed (as opposed to 'active, not recruiting')
+    // For China and NNTR, not clear odf the meaning of 'Completed' - need tro investigate...
+    // For EUDRACXT and CTIS ???
+  
+    let s = status.to_lowercase();
+    if (s == "completed" && (source_id == 100120 || source_id == 100116)) 
+        || s == "complete: follow-up complete" || s == "complete: follow up complete" 
+        || s == "data analysis completed" || s == "main results already published"
+        || s == "approved for marketing"
+    {
+        30    // Study Completed
+    }
+    else if s == "complete" || s == "completed" || s == "complete: follow-up continuing" 
+        || s == "complete: follow up continuing" || s == "active, not recruiting" 
+        || s == "closed to recruitment of participants" || s == "no longer recruiting" 
+        || s == "not recruiting" || s == "recruitment completed"
+        || s == "enrollment closed"
+        || s == "recruiting stopped after recruiting started"
+    {
+        25    //  No longer recruiting - may be ongoing as a study
+    }
+    else if s == "recruiting"  || s =="open public recruiting" 
+    || s == "open to recruitment" || s =="in enrollment"
+    {
+        15  // Recruiting
+    }
+    else if s.contains("pending")
+        || s == "not yet recruiting"
+        || s == "without startig enrollment"
+        || s == "preinitiation"
+    {
+        10   // Not yet recruiting
+    }
+    else if s.contains("suspended") || s.contains("temporarily closed")
+        || s == "temporary halt"
+    {
+        19      // Suspended
+    }
+    else if s.contains("terminated") || s.contains("stopped early")
+        || s == "stopped"
+    {
+        28      // Terminated
+    }
+    else if s.contains("withdrawn")
+    {
+        12      // Withdrawn
+    }
+    else if s.contains("enrolling by invitation")
+    {
+        16      // Enrolling by invitation
+    }
+    else if s == "authorised-recruitment may be ongoing or finished"  || s == "available" || s == "ongoing"
+    {
+        22      // Ongoing, recruitment status unclear
+    }
+    else if s == "not applicable" || s== "na" || s== "n/a"{
+        98      // Recorded as not applicable
+    }
+    else if s == "withheld" || s == "unknown" || s == "no longer available"
+        || s == "deleted from source registry" || s == "unknown status"
+        || s == "temporarily not available" {
+            0       // Not provided
+    }
     else {
-        0
+        99   // Other
     }
 }
 
+         
 
 pub fn get_conditions(condition_list: &String, source_id: i32) -> (Option<Vec<String>>, Option<Vec<MeddraCondition>>) {
 
@@ -342,23 +308,39 @@ pub fn get_conditions(condition_list: &String, source_id: i32) -> (Option<Vec<St
         }
     }
 
-    // In some cases conditions are duplicated in the WHO list
-    // Duplication can also occur of SOCs if mulitple MedDRA entries provided
-    // Therefore need to de-duplicate
-
-    let mut uniques = HashSet::new();
-    conds.retain(|e| uniques.insert(e.clone()));
-
     // Convert vectors to Option<vector>
 
     let conditions_option = match conds.len() {
             0 => None,
-            _ => Some(conds)
+            _ => {  
+                    if conds.len() > 1 {       // May need to de-duplicate
+                        
+                        let mut uniques = HashSet::new();
+                        conds.retain(|e| uniques.insert(e.clone()));
+                    }
+                    Some(conds)
+                },
     };
 
-    let meddraconds_option = match medra_conds.len() {
+    let meddraconds_option: Option<Vec<MeddraCondition>> = match medra_conds.len() {
             0 => None,
-            _ => Some(medra_conds)
+            _ => {         
+                    let mut revised_list: Vec<MeddraCondition> = Vec::new();
+                    if medra_conds.len() == 1 {
+                        revised_list = medra_conds;
+                    }
+                    else {          // May need to de-duplicate
+                        
+                        let mut uniques:HashSet<String> = HashSet::new();
+                        for mc in medra_conds {
+                            if uniques.insert(mc.term.clone()) {
+                                revised_list.push(mc);
+                            }
+                        }
+                    }
+                    Some(revised_list)
+                }
+                  
     };
 
     (conditions_option, meddraconds_option)    
@@ -475,6 +457,12 @@ pub fn add_eu_design_features(design: &String) -> Vec<WhoStudyFeature> {
     if design.contains("randomised: yes") {
         fs.push(WhoStudyFeature::new(22, "Allocation type", 205, "Randomised"));
     }
+    if design.contains("parallel group: yes") {
+        fs.push(WhoStudyFeature::new(23, "Intervention model", 305, "Parallel assignment"));
+    }
+    if design.contains("cross over: yes") {
+        fs.push(WhoStudyFeature::new(23, "Intervention model", 310, "Crossover assignment"));
+    }
     if design.contains("open: yes") {
         fs.push(WhoStudyFeature::new(24, "Masking", 500, "None (Open Label)"));
     }
@@ -484,60 +472,96 @@ pub fn add_eu_design_features(design: &String) -> Vec<WhoStudyFeature> {
     if design.contains("double blind: yes") {
         fs.push(WhoStudyFeature::new(24, "Masking", 510, "Double"));
     }
-    if design.contains("parallel group: yes") {
-        fs.push(WhoStudyFeature::new(23, "Intervention model", 305, "Parallel assignment"));
-    }
-    if design.contains("cross over: yes") {
-        fs.push(WhoStudyFeature::new(23, "Intervention model", 310, "Crossover assignment"));
-    }
 
     fs
 }
 
 
+pub fn add_study_purpose(design_list: &String) -> Option<WhoStudyFeature> {
+   
+    let design = design_list.replace(" :", ":"); // to make comparisons easier
+    let purpose: &str ;
+    let code: usize;
+
+    if design.contains("purpose: treatment") || design.ends_with(", treatment")
+    {
+        purpose = "Treatment";  code = 400;
+    }
+    else if design.contains("purpose: diagnosis") || design.contains("diagnostic")
+    {
+        purpose = "Diagnostic";  code = 410;
+    }   
+    else if design.contains("supportive care") || design.contains("purpose: supportive")
+    {
+        purpose = "Supportive care";    code = 415;
+    }
+    else if design.contains("screening")
+    {   
+        purpose = "Screening";     code = 420;
+    }
+    else if design.contains("prevention") || design.contains("preventative") 
+    {
+        purpose = "Prevention";    code = 405;
+    }
+    else if design.contains("basic science") || design.contains("natural history") 
+    {   
+        purpose = "Basic Science";    code = 430;
+    }
+    else if design.contains("health services") 
+    {   
+        purpose = "Health services research";   code = 425;
+    }
+    else if design.contains("device") 
+    {   
+        purpose = "Device feasibility";    code = 435;
+    }
+    else if design.contains("education") ||  design.contains("counselling") || design.contains("training") 
+    {    
+        purpose = "Educational / counselling / training";     code = 450;
+    }
+    else {
+        purpose = "Not provided";   code = 0;
+    }
+
+    if purpose != "Not provided" {
+        Some(WhoStudyFeature::new(21, "Primary purpose", code, purpose))
+    }
+    else {
+        None
+    }
+     
+}
+
+
 pub fn add_int_study_features(design_list: &String) -> Vec<WhoStudyFeature> {
     let mut fs = Vec::<WhoStudyFeature>::new();
-    let design = design_list.replace(" :", ":"); // to make comparisons easier
-
-    if design.contains("purpose: treatment")
-    {
-        fs.push(WhoStudyFeature::new(21, "Primary purpose", 400, "Treatment"));
-    }
-    if design.contains("purpose: diagnosis") || design.contains("diagnostic")
-    {
-        fs.push(WhoStudyFeature::new(21, "Primary purpose", 410, "Diagnostic"));
-    }    
-    if design.contains("supportive care") || design.contains("purpose: supportive")
-    {
-        fs.push(WhoStudyFeature::new(21, "Primary purpose", 415, "Supportive care"));
-    }
-
-    if design.contains("non-randomized")   
-     || design.contains("nonrandomized")
-     || design.contains("non-randomised")
-     || design.contains("nonrandomised")
-     || design.contains("non-rct")
+   
+    if design_list.contains("non-randomized")   
+     || design_list.contains("nonrandomized")
+     || design_list.contains("non-randomised")
+     || design_list.contains("nonrandomised")
+     || design_list.contains("non-rct")
     {
         fs.push(WhoStudyFeature::new(22, "Allocation type", 210, "Nonrandomised"));
     }
-    else if design.contains("randomized")
-         || design.contains("randomised")
-         || design.contains(" rct")
+    else if design_list.contains("randomized")
+         || design_list.contains("randomised")
+         || design_list.contains(" rct")
     {
         fs.push(WhoStudyFeature::new(22, "Allocation type", 205, "Randomised"));
     }
 
-    if design.contains("parallel")
+    if design_list.contains("parallel")
     {
         fs.push(WhoStudyFeature::new(23, "Intervention model", 305, "Parallel assignment"));
     }
 
-    if design.contains("crossover")
+    if design_list.contains("crossover")
     {
         fs.push(WhoStudyFeature::new(23, "Intervention model", 310, "Crossover assignment"));
     }
 
-    if design.contains("factorial")
+    if design_list.contains("factorial")
     {
         fs.push(WhoStudyFeature::new(23, "Intervention model", 315, "Factorial assignment"));
     }
@@ -547,64 +571,63 @@ pub fn add_int_study_features(design_list: &String) -> Vec<WhoStudyFeature> {
 
 
 pub fn add_obs_study_features(design: &String) -> Vec<WhoStudyFeature> {
+    
+   // "Purpose: Screening;Duration: Longitudinal;Selection: Defined population;Timing: Prospective"
     let mut fs = Vec::<WhoStudyFeature>::new();
     
-    if design.contains("observational study model")
+    if design.contains("cohort")
     {
-        if design.contains("cohort")
-        {
-            fs.push(WhoStudyFeature::new(30, "Observational model", 600, "Cohort"));
-        }
-        if design.contains("case-control") || design.contains("case control")
-        {
-            fs.push(WhoStudyFeature::new(30, "Observational model", 605, "Case-control"));
-        }
-        if design.contains("case-crossover") || design.contains("case crossover")
-        {
-            fs.push(WhoStudyFeature::new(30, "Observational model", 615, "Case-crossover"));
-        }
-
+        fs.push(WhoStudyFeature::new(30, "Observational model", 600, "Cohort"));
     }
-    if design.contains("time perspective")
+    
+    if design.contains("case-control") || design.contains("case control")
     {
-        if design.contains("retrospective")
-        {
-            fs.push(WhoStudyFeature::new(31, "Time perspective", 700, "Retrospective"));
-        }
-        if design.contains("prospective")
-        {
-            fs.push(WhoStudyFeature::new(31, "Time perspective", 705, "Prospective"));
-        }
-        if design.contains("cross-sectional") || design.contains("crosssectional")
-        {
-            fs.push(WhoStudyFeature::new(31, "Time perspective", 710, "Cross-sectional"));
-        }
-        if design.contains("longitudinal")
-        {
-            fs.push(WhoStudyFeature::new(31, "Time perspective", 730, "longitudinal"));
-        }
+        fs.push(WhoStudyFeature::new(30, "Observational model", 605, "Case-control"));
     }
 
-
-    if design.contains("biospecimen retention")
+    if design.contains("case-crossover") || design.contains("case crossover")
     {
-        if design.contains("not collect nor archive")
-        {
-            fs.push(WhoStudyFeature::new(32, "Biospecimens retained", 800, "None retained"));
-        }
-        if design.contains("collect & archive- sample with dns")
-        {
-            fs.push(WhoStudyFeature::new(32, "Biospecimens retained", 805, "Samples with DNA"));
-        }
+        fs.push(WhoStudyFeature::new(30, "Observational model", 615, "Case-crossover"));
+    }
+
+    if design.contains("retrospective")
+    {
+        fs.push(WhoStudyFeature::new(31, "Time perspective", 700, "Retrospective"));
+    }
+
+    if design.contains("prospective")
+    {
+        fs.push(WhoStudyFeature::new(31, "Time perspective", 705, "Prospective"));
+    }
+
+    if design.contains("cross-sectional") || design.contains("crosssectional")
+    {
+        fs.push(WhoStudyFeature::new(31, "Time perspective", 710, "Cross-sectional"));
+    }
+
+    if design.contains("longitudinal")
+    {
+        fs.push(WhoStudyFeature::new(31, "Time perspective", 730, "longitudinal"));
+    }
+
+    if design.contains("not collect nor archive")
+    {
+        fs.push(WhoStudyFeature::new(32, "Biospecimens retained", 800, "None retained"));
+    }
+    if design.contains("collect & archive- sample with dns")
+    {
+        fs.push(WhoStudyFeature::new(32, "Biospecimens retained", 805, "Samples with DNA"));
     }
 
     fs
 }
 
 
-pub fn add_masking_features(design_list: &String) -> Vec<WhoStudyFeature> {
-    let mut fs = Vec::<WhoStudyFeature>::new();
+pub fn add_masking(design_list: &String) -> Option<WhoStudyFeature> {
+
     let design = design_list.replace(" :", ":"); // to make comparisons easier
+    let masking: &str ;
+    let code: usize;
 
     if design.contains("open label")
        || design.contains("open-label")
@@ -618,7 +641,8 @@ pub fn add_masking_features(design_list: &String) -> Vec<WhoStudyFeature> {
        || design.contains("masking: open")
        || design.contains("blinding: open")
     {
-        fs.push(WhoStudyFeature::new(24, "Masking", 500, "None (Open Label)"));
+        masking = "None (Open Label";
+        code = 500;
     }
     else if design.contains("single blind")
      || design.contains("single-blind")
@@ -633,7 +657,8 @@ pub fn add_masking_features(design_list: &String) -> Vec<WhoStudyFeature> {
      || design.contains("blinded (data analyst)")
      || design.contains("uni-blind")
     {
-        fs.push(WhoStudyFeature::new(24, "Masking", 505, "Single"));
+        masking = "Single";
+        code = 505;
     }
     else if design.contains("double blind")
      || design.contains("double-blind")
@@ -646,50 +671,71 @@ pub fn add_masking_features(design_list: &String) -> Vec<WhoStudyFeature> {
      || design.contains("masking:participant, investigator, outcome assessor")
      || design.contains("participant and investigator blinded")
     {
-        fs.push(WhoStudyFeature::new(24, "Masking", 510, "Double"));
+        masking = "Double";
+        code = 510;
     }
     else if design.contains("triple blind")
      || design.contains("triple-blind")
      || design.contains("blinded (patient/subject, caregiver, investigator/therapist, assessor")
      || design.contains("masking:participant, investigator, outcome assessor")
     {
-        fs.push(WhoStudyFeature::new(24, "Masking", 515, "Triple"));
+        masking = "Triple";
+        code = 515;
     }
     else if design.contains("quadruple blind") || design.contains("quadruple-blind")
     {
-        fs.push(WhoStudyFeature::new(24, "Masking", 520, "Quadruple"));
+        masking = "Quadruple";
+        code = 520;
     }
     else if design.contains("masking used") || design.contains("blinding used")
     {
-        fs.push(WhoStudyFeature::new(24, "Masking", 502, "Blinded (no details)"));
+        masking = "Blinded (no details)";
+        code = 502;
     }
     else if design.contains("masking:not applicable")
      || design.contains("blinding:not applicable")
      || design.contains("masking not applicable")
      || design.contains("blinding not applicable")
     {
-        fs.push(WhoStudyFeature::new(24, "Masking", 599, "Not applicable"));
+        masking = "Not applicable";
+        code = 599;
     }
     else if design.contains("masking: unknown")
     {
-        fs.push(WhoStudyFeature::new(24, "Masking", 525, "Not provided"));
+        masking = "Not provided";
+        code = 525;
+    }
+    else {
+        masking = "Not provided";
+        code = 525;
     }
 
-    fs
+    if masking != "Not provided" {
+        Some(WhoStudyFeature::new(24, "Masking", code, masking))
+    }
+    else {
+        None
+    }
+
 }
 
 
-pub fn add_eu_phase_features(phase_list: &String) -> Vec<WhoStudyFeature> {
-    let mut fs = Vec::<WhoStudyFeature>::new();
+pub fn add_eu_phase(phase_list: &String) -> Option<WhoStudyFeature> {
     
     // phase string in the form
-    //"Human pharmacology (Phase I): noTherapeutic exploratory (Phase II): yesTherapeutic confirmatory - (Phase III): noTherapeutic use (Phase IV): no"
+    // (Eudract) "Human pharmacology (Phase I): noTherapeutic exploratory (Phase II): yesTherapeutic confirmatory - (Phase III): noTherapeutic use (Phase IV): no"
+    // (CTIS) "phase_string": "Human pharmacology (Phase I): No Therapeutic exploratory (Phase II): No Therapeutic confirmatory - (Phase III): Yes Therapeutic use - (Phase IV): No",
     // split on the colon
 
     let mut p1 = false;
     let mut p2 = false;
     let mut p3 = false;
+    let mut p4 = false;
+
     let ps: Vec<&str> = phase_list.split(':').into_iter().collect();
+
+    // Presence of each phase signalled by the ebginning of the following text.
+
     if ps[1].trim().starts_with("yes") {
         p1 = true;
     }
@@ -699,87 +745,123 @@ pub fn add_eu_phase_features(phase_list: &String) -> Vec<WhoStudyFeature> {
     if ps[3].trim().starts_with("yes") {
         p3 = true;
     }
+    if ps[4].trim().starts_with("yes") {
+        p4 = true;
+    }
+
+    let phase: &str;
+    let code: usize;
     
     if p1 && p2 {
-        fs.push(WhoStudyFeature::new(20, "Phase", 115, "Phase 1/Phase 2"));
+        phase = "Phase 1/Phase 2";
+        code = 115;
     }
     else if p2 && p3 {
-        fs.push(WhoStudyFeature::new(20, "Phase", 125, "Phase 2/Phase 3"));
+        phase = "Phase 2/Phase 3";
+        code = 125;
     }
     else if p1 {
-        fs.push(WhoStudyFeature::new(20, "phase", 110, "Phase 1"));
+        phase = "Phase 1";
+        code = 110;
     }
     else if p2 {
-        fs.push(WhoStudyFeature::new(20, "Phase", 120, "Phase 2"));
+        phase = "Phase 2";
+        code = 120;
     }
     else if p3 {
-        fs.push(WhoStudyFeature::new(20, "phase", 130, "Phase 3"));
+        phase = "Phase 3";
+        code = 130;
+    }
+    else if p4 {
+        phase = "Phase 4";
+        code = 135;
+    }
+    else {
+        phase = "Not provided";
+        code = 0;
     }
 
-    if ps[4].trim().starts_with("yes") {
-        fs.push(WhoStudyFeature::new(20, "phase", 135, "Phase 4"));
+    if phase != "Not provided" {
+        Some(WhoStudyFeature::new(20, "Phase", code, phase))
     }
-
-    fs
+    else {
+        None
+    }
 }
 
 
-pub fn add_phase_features(phase: &String) -> Vec<WhoStudyFeature> {
-    let mut fs = Vec::<WhoStudyFeature>::new();
+pub fn add_phase(phase: &String) -> Option<WhoStudyFeature> {
     
-    if phase != "not selected" && phase != "not applicable"
-        && phase != "na" && phase != "n/a"
+    let ph: &str;
+    let code: usize;
+    
+    if phase == "phase 0" || phase == "phase-0" || phase == "phase0" 
+    || phase ==  "0" || phase ==  "0 (exploratory trials)" 
+    || phase == "phase 0 (exploratory trials)" || phase ==  "0 (exploratory trials)"
     {
-        if phase == "phase 0" || phase == "phase-0" || phase == "phase0" 
-        || phase ==  "0" || phase ==  "0 (exploratory trials)" 
-        || phase == "phase 0 (exploratory trials)" || phase ==  "0 (exploratory trials)"
-        {
-            fs.push(WhoStudyFeature::new(20, "Phase", 105, "Early phase 1"));
-        }
-        else if phase == "1" || phase ==  "i" || phase ==  "i (phase i study)" 
-                 || phase == "phase-1" || phase ==  "phase 1" || phase ==  "phase i" || phase ==  "phase1"
-        {
-            fs.push(WhoStudyFeature::new(20, "phase", 110, "Phase 1"));
-        }
-        else if phase == "1-2" || phase ==  "1 to 2" || phase ==  "i-ii" 
-        || phase ==  "i+ii (phase i+phase ii)" || phase ==  "phase 1-2" 
-        || phase ==  "phase 1 / phase 2" || phase ==  "phase 1/ phase 2" 
-        || phase == "phase 1/phase 2" || phase ==  "phase i,ii" || phase == "phase1/phase2"
-        {
-            fs.push(WhoStudyFeature::new(20, "Phase", 115, "Phase 1/Phase 2"));
-        }
-        else if phase == "2" || phase ==  "2a" || phase ==  "2b" 
-        || phase ==  "ii" || phase ==  "ii (phase ii study)" || phase ==  "iia" 
-        || phase ==  "iib" || phase ==  "phase-2" || phase ==  "phase 2" || phase ==  "phase ii" || phase ==  "phase2"
-        {
-            fs.push(WhoStudyFeature::new(20, "Phase", 120, "Phase 2"));
-        }
-        else if phase == "2-3" || phase == "ii-iii" || phase ==  "phase 2-3" 
-        || phase == "phase 2 / phase 3" || phase == "phase 2/ phase 3" 
-        || phase ==  "phase 2/phase 3" || phase == "phase2/phase3" || phase == "phase ii,iii"
-        {
-            fs.push(WhoStudyFeature::new(20, "Phase", 125, "Phase 2/Phase 3"));
-        }
-        else if phase == "3" || phase ==  "iii" || phase ==  "iii (phase iii study)" 
-        || phase ==  "iiia" || phase ==  "iiib" || phase ==  "3-4" || phase ==  "phase-3" 
-        || phase ==  "phase 3" || phase ==  "phase 3 / phase 4" 
-        || phase ==  "phase 3/ phase 4" || phase ==  "phase3" || phase ==  "phase iii"
-        {
-            fs.push(WhoStudyFeature::new(20, "Phase", 130, "Phase 3"));
-        }
-        else if phase == "4" || phase ==  "iv" || phase ==  "iv (phase iv study)" 
-                 || phase == "phase-4" || phase ==  "phase 4" || phase ==  "post-market" 
-                 || phase ==  "post marketing surveillance" || phase ==  "phase4" || phase ==  "phase iv"
-        {
-            fs.push(WhoStudyFeature::new(20, "Phase", 135, "Phase 4"));
-        }
-        else
-        {
-            fs.push(WhoStudyFeature::new(20, "Phase", 1500, phase));
-        }
+        ph = "Early phase 1";
+        code = 105;
+    }
+    else if phase == "1" || phase ==  "i" || phase ==  "i (phase i study)" 
+                || phase == "phase-1" || phase ==  "phase 1" || phase ==  "phase i" || phase ==  "phase1"
+    {
+        ph = "Phase 1";
+        code = 110;
+    }
+    else if phase == "1-2" || phase ==  "1 to 2" || phase ==  "i-ii" 
+    || phase ==  "i+ii (phase i+phase ii)" || phase ==  "phase 1-2" 
+    || phase ==  "phase 1 / phase 2" || phase ==  "phase 1/ phase 2" 
+    || phase == "phase 1/phase 2" || phase ==  "phase i,ii" || phase == "phase1/phase2"
+    {
+        ph = "Phase 1/Phase 2";
+        code = 115;
+    }
+    else if phase == "2" || phase ==  "2a" || phase ==  "2b" 
+    || phase ==  "ii" || phase ==  "ii (phase ii study)" || phase ==  "iia" 
+    || phase ==  "iib" || phase ==  "phase-2" || phase ==  "phase 2" || phase ==  "phase ii" || phase ==  "phase2"
+    {
+        ph = "Phase 2";
+        code = 120;
+    }
+    else if phase == "2-3" || phase == "ii-iii" || phase ==  "phase 2-3" 
+    || phase == "phase 2 / phase 3" || phase == "phase 2/ phase 3" 
+    || phase ==  "phase 2/phase 3" || phase == "phase2/phase3" || phase == "phase ii,iii"
+    {
+        ph = "Phase 2/Phase 3";
+        code = 125;
+    }
+    else if phase == "3" || phase ==  "iii" || phase ==  "iii (phase iii study)" 
+    || phase ==  "iiia" || phase ==  "iiib" || phase ==  "3-4" || phase ==  "phase-3" 
+    || phase ==  "phase 3" || phase ==  "phase 3 / phase 4" 
+    || phase ==  "phase 3/ phase 4" || phase ==  "phase3" || phase ==  "phase iii"
+    {
+        ph = "Phase 3";
+        code = 130;
+    }
+    else if phase == "4" || phase ==  "iv" || phase ==  "iv (phase iv study)" 
+                || phase == "phase-4" || phase ==  "phase 4" || phase ==  "post-market" 
+                || phase ==  "post marketing surveillance" || phase ==  "phase4" || phase ==  "phase iv"
+    {
+        ph = "Phase 4";
+        code = 135;
+    }
+    else if phase == "not selected" || phase == "not applicable"
+            || phase == "na" || phase == "n/a" {
+        ph = "Not provided";
+        code = 0;
+    }
+    else
+    {
+        ph = "Not provided";
+        code = 0;
     }
 
-    fs
+    if ph != "Not provided" {
+        Some(WhoStudyFeature::new(20, "Phase", code, ph))
+    }
+    else {
+        None
+    }
 }
 
 
@@ -810,7 +892,6 @@ pub fn  split_ids(sd_sid: &String, in_string: &String, source_field: &str) -> Ve
                 
                 // Is the id the same as the sid? (With EUCTR may be, 
                 // because it is simply anoher country code variation)
-                // Has this id been added before?
 
                 if sec_id_base.processed_id != sd_sid.to_string()
                 {
@@ -922,7 +1003,8 @@ fn contains_nct(hay: &str) -> Option<SecIdBase> {
             Some(s) => {
             let id = &s[0];
             if id == "NCT11111111" || id == "NCT99999999" 
-            || id == "NCT12345678" || id == "NCT87654321" {
+            || id == "NCT12345678" || id == "NCT87654321" 
+            || id == "NCT00000000" {
                 None
             }
             else {
@@ -984,12 +1066,17 @@ fn contains_isrctn(hay: &str) -> Option<SecIdBase> {
         match RE.captures(&hay2) {
             Some(s) => {
                 let id = &s[0];
-                Some(SecIdBase{
-                    processed_id: id.to_string(),
-                    sec_id_source: 100126, 
-                    sec_id_type_id: 11,
-                    sec_id_type: "Trial Registry ID".to_string(),
-                })
+                if id == "ISRCTN00000000" {
+                    None
+                }
+                else {
+                    Some(SecIdBase{
+                        processed_id: id.to_string(),
+                        sec_id_source: 100126, 
+                        sec_id_type_id: 11,
+                        sec_id_type: "Trial Registry ID".to_string(),
+                    })
+                }
             },
             None => None,
         }
@@ -1115,8 +1202,8 @@ fn contains_jcrt(hay: &str) -> Option<SecIdBase> {
         static RE2: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"jRCT[0-9]{10}").unwrap());
         match RE1.captures(hay) {
             Some(s1) => {
-                let id = Some(&s1[0]);
-                let processed_id = format!("JPRN-{:?}", id);  // internal representation for CTRI
+                let id = &s1[0];
+                let processed_id = format!("JPRN-{}", id);  // internal representation for CTRI
                 Some(SecIdBase{
                     processed_id: processed_id,
                     sec_id_source: 100127, 
@@ -1128,8 +1215,8 @@ fn contains_jcrt(hay: &str) -> Option<SecIdBase> {
             None => {
                 match RE2.captures(hay) {
                     Some(s2) => {
-                        let id = Some(&s2[0]);
-                        let processed_id = format!("JPRN-{:?}", id);  // internal representation for CTRI
+                        let id = &s2[0];
+                        let processed_id = format!("JPRN-{}", id);  // internal representation for CTRI
                         Some(SecIdBase{
                             processed_id: processed_id,
                             sec_id_source: 100127, 

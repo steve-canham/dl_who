@@ -5,9 +5,9 @@ use chrono::NaiveDate;
 use std::collections::HashSet;
 
 use super::who_helper::{get_db_name, get_source_id, get_type, get_status, 
-    get_conditions, split_and_dedup_countries,
+    get_conditions, split_and_dedup_countries, add_study_purpose,
     add_int_study_features, add_obs_study_features, add_eu_design_features,
-    add_masking_features, add_phase_features, add_eu_phase_features, split_ids};
+    add_masking, add_phase, add_eu_phase, split_ids};
 use super::gen_helper::{StringExtensions, DateExtensions};
 use super::file_models::{WHOLine, WHORecord, WhoStudyFeature, SecondaryId, WHOSummary};
 
@@ -15,7 +15,7 @@ use super::file_models::{WHOLine, WHORecord, WhoStudyFeature, SecondaryId, WHOSu
 pub fn process_line(w: WHOLine, summ: &WHOSummary) -> Option<WHORecord>  {
 
     let source_id = summ.source_id;
-    let study_type = summ.study_type;
+    let study_type_id = summ.study_type_id;
 
     let design_orig = w.study_design.tidy();
     let phase_orig = w.phase.tidy();
@@ -32,46 +32,56 @@ pub fn process_line(w: WHOLine, summ: &WHOSummary) -> Option<WHORecord>  {
 
    
     let mut features = Vec::<WhoStudyFeature>::new();
+    
+    if let Some(dl) = w.phase.tidy() {
 
-    match w.study_design.tidy() {
-       Some(dl) => {
-            let des_list = &dl.to_lowercase();
-            if study_type == 11
+        let phase_statement = &dl.to_lowercase();
+        if source_id == 100123 || source_id == 110428 {
+            if let Some(sf) = add_eu_phase(phase_statement)
             {
-                let mut fs = add_obs_study_features(des_list);
-                features.append(&mut fs);
+                features.push(sf);
+            };
+        }
+        else {
+            if let Some(sf) = add_phase(phase_statement)
+            {
+                features.push(sf);
+            };
+        }
+    }
+    
+    if let Some(dl) =  w.study_design.tidy() {
+    
+        let des_list = &dl.to_lowercase();
+        if source_id == 100123 || source_id == 110428 {
+                let mut sfs = add_eu_design_features(des_list);
+                features.append(&mut sfs);
+        }
+        else
+        {
+            if let Some(sf) = add_study_purpose(des_list)
+            {
+                features.push(sf);
+            };
+
+            if study_type_id == 12
+            {
+                let mut sfs = add_obs_study_features(des_list);
+                features.append(&mut sfs);
             }
             else
             {      
-                if source_id == 100123 {
-                    let mut fs = add_eu_design_features(des_list);
-                    features.append(&mut fs);
-                }
-                else {         
-                    let mut fs = add_int_study_features(des_list);
-                    features.append(&mut fs);
-                    let mut fs = add_masking_features(des_list);
-                    features.append(&mut fs);
-                }
+                let mut sfs = add_int_study_features(des_list);
+                features.append(&mut sfs);
+                
+                if let Some(sf) = add_masking(des_list)
+                {
+                    features.push(sf);
+                };
             }
-       },
-       None => {},
-    }
-
-
-    if let Some(dl) = w.phase.tidy() {
-        let phase_statement = &dl.to_lowercase();
-        if source_id == 100123 {
-            let mut fs = add_eu_phase_features(phase_statement);
-            features.append(&mut fs);
-        }
-        else {
-            let mut fs = add_phase_features(phase_statement);
-            features.append(&mut fs);
         }
     }
-
- 
+       
     let study_features = match features.len() {
         0 => None,
         _ => Some(features)
@@ -124,21 +134,20 @@ pub fn process_line(w: WHOLine, summ: &WHOSummary) -> Option<WHORecord>  {
     let gender = match w.gender.tidy() {
 
        Some(g) => {
-            let gen = g.to_lowercase();
-            if gen.contains("both")
+            let glow = g.to_lowercase();
+            if glow.contains("both")
             {
                 Some("Both".to_string())
             }
             else
             {
-                let f = gen.contains("female") || gen.contains("women") || gen == "f";
-                let mut gen2 = gen.clone();
+                let f = glow.contains("female") || glow.contains("women") || glow == "f";
+                let mut gen2 = glow.clone();
                 if f {
-                    gen2 = gen.replace("female", "").replace("women", "")
+                    gen2 = glow.replace("female", "").replace("women", "")
                 }
-                let m = gen2.contains("male") || gen.contains("men") || gen == "m";
+                let m = gen2.contains("male") || glow.contains("men") || glow == "m";
                 
-
                 if m && f
                 {
                     Some("Both".to_string())
@@ -149,12 +158,12 @@ pub fn process_line(w: WHOLine, summ: &WHOSummary) -> Option<WHORecord>  {
                 else if f {
                     Some("Female".to_string())
                 }
-                else if gen == "-" {
+                else if glow == "-" {
                     None
                 }
                 else // still no match...
                 {
-                    Some(format!("?? Unable to classify ({})", gen))
+                    Some(format!("?? Unable to classify ({})", g))
                 }
         }
     },
@@ -244,13 +253,13 @@ pub fn process_line(w: WHOLine, summ: &WHOSummary) -> Option<WHORecord>  {
         scientific_contact_familyname: w.sci_contact_last_name.tidy(),
         scientific_contact_email: w.sci_contact_email.tidy(),
         scientific_contact_affiliation: w.sci_contact_affiliation.tidy(),
-        study_type_orig: w.study_type.tidy(),
-        study_type: summ.study_type,
+        study_type_orig: summ.study_type.to_owned(),
+        study_type_id: summ.study_type_id,
         date_registration: w.date_registration.as_iso_date(),
         date_enrolment: w.date_enrollement.as_iso_date(),
         target_size: w.target_size.tidy(),
-        study_status_orig: w.recruitment_status.tidy(),
-        study_status: summ.study_status,
+        study_status_orig: summ.study_status.to_owned(),
+        study_status_id: summ.study_status_id,
         primary_sponsor: w.primary_sponsor.tidy(),
         secondary_sponsors: w.secondary_sponsors.tidy(),
         source_support: w.source_support.tidy(),
@@ -316,15 +325,28 @@ pub fn summarise_line(w: &WHOLine, dl_id: i32, line_number: i32) -> Option<WHOSu
         title = w.scientific_title.replace_unicodes();
     }
     
-    let stype = get_type(&w.study_type.tidy());
-
-    let status = if w.results_yes_no.to_lowercase() == "yes" {
-        30   // completed
-    }
-    else {
-        get_status(&w.recruitment_status.tidy())
+    let study_type = w.study_type.tidy();
+    let study_type_id = match &study_type {
+         Some(t) => get_type(&t),
+         None => 0
     };
- 
+
+    let study_status = w.recruitment_status.tidy();
+   
+    //Opportunity for a let-chain!
+    
+    let study_status_id = match &study_status {
+         Some(s) => {
+            if let Some(yn) = w.results_yes_no.tidy() && yn.to_lowercase() == "yes" {
+                30   // study completed
+            }
+            else {
+                get_status(&s, source_id)
+            }
+         },
+         None => 0
+    };
+
     let mut secondary_ids: Vec<SecondaryId> = Vec::new();
 
     if let Some(s) = w.sec_ids.tidy()  {
@@ -348,12 +370,25 @@ pub fn summarise_line(w: &WHOLine, dl_id: i32, line_number: i32) -> Option<WHOSu
         }
     }
 
+    // Secondary ids are often duplicated, need to be de-duplicated
+    // using the .processed_id field
+
     let secids = match secondary_ids.len() {
         0 => None, 
         _ =>  {  
-                let mut uniques = HashSet::new();    // Dedup here
-                secondary_ids.retain(|e| uniques.insert(e.clone()));
-                Some(secondary_ids)
+                let mut revised_list: Vec<SecondaryId> = Vec::new();
+                if secondary_ids.len() == 1 {
+                    revised_list = secondary_ids;
+                }
+                else {
+                    let mut uniques:HashSet<String> = HashSet::new();
+                    for secid in  secondary_ids {
+                        if uniques.insert(secid.processed_id.clone()) {
+                            revised_list.push(secid);
+                        }
+                    }
+                }
+                Some(revised_list)
             },
     };
    
@@ -421,8 +456,10 @@ pub fn summarise_line(w: &WHOLine, dl_id: i32, line_number: i32) -> Option<WHOSu
         sd_sid: sd_sid, 
         title: title,
         remote_url: w.url.tidy(),
-        study_type: stype,
-        study_status: status,
+        study_type: study_type,
+        study_type_id: study_type_id,
+        study_status: study_status,
+        study_status_id: study_status_id,
         secondary_ids: secids,
         date_registration: date_reg,
         reg_year: reg_year,

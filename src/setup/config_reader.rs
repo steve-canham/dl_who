@@ -101,7 +101,11 @@ pub fn populate_config_vars(config_string: &String) -> Result<Config, AppError> 
     let config_data_dets = verify_data_parameters(toml_data_details)?;
     let config_db_pars = verify_db_parameters(toml_database)?;
 
-    let _ = DB_PARS.set(config_db_pars.clone());
+    match DB_PARS.set(config_db_pars.clone())
+    {
+        Ok(()) => {},     // retuerns an empty OK value if set was successful
+        Err(_e) => {},  // returns an existing value if one exists
+    }
 
     Ok(Config{
         data_details: config_data_dets,
@@ -213,37 +217,37 @@ fn check_defaulted_string (src_name: Option<String>, value_name: &str, default_n
 
 
 pub fn fetch_mon_db_name() -> Result<String, AppError> {
-    let db_pars = match DB_PARS.get() {
-         Some(dbp) => dbp,
-         None => {
-            return Result::Err(AppError::MissingDBParameters());
-        },
-    };
-    Ok(db_pars.mon_db_name.clone())
+   
+   match DB_PARS.get() {
+         Some(dbp) => Ok(dbp.mon_db_name.clone()),
+         None => Result::Err(AppError::MissingDBParameters()),
+   }
 }
 
 pub fn fetch_src_db_name() -> Result<String, AppError> {
-    let db_pars = match DB_PARS.get() {
-         Some(dbp) => dbp,
-         None => {
-            return Result::Err(AppError::MissingDBParameters());
-        },
-    };
-    Ok(db_pars.src_db_name.clone())
+
+    match DB_PARS.get() {
+         Some(dbp) =>  Ok(dbp.src_db_name.clone()),
+         None => Result::Err(AppError::MissingDBParameters()),
+    }
 }
 
 pub fn fetch_db_conn_string(db_name: &String) -> Result<String, AppError> {
-    let db_pars = match DB_PARS.get() {
-         Some(dbp) => dbp,
-         None => {
-            return Result::Err(AppError::MissingDBParameters());
-        },
-    };
     
-    Ok(format!("postgres://{}:{}@{}:{}/{}", 
-    db_pars.db_user, db_pars.db_password, db_pars.db_host, db_pars.db_port, db_name))
+    match DB_PARS.get() {
+         Some(dbp) => Ok(format!("postgres://{}:{}@{}:{}/{}", 
+                    dbp.db_user, dbp.db_password, dbp.db_host, dbp.db_port, db_name)),
+         None => return Result::Err(AppError::MissingDBParameters()),
+    }
 }
-
+    
+pub fn fetch_db_pars() -> Result<DBPars, AppError> {
+    
+    match DB_PARS.get() {
+        Some(dbp) => Ok(dbp.clone()),
+        None => Result::Err(AppError::MissingDBParameters()),
+   }
+}
 
 
 #[cfg(test)]

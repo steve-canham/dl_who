@@ -99,9 +99,9 @@ pub struct WHORecord
     pub scientific_contact_email: Option<String>,
     pub scientific_contact_affiliation: Option<String>,
     pub study_type_orig: Option<String>,
-    pub study_type: i32,
+    pub study_type_id: i32,
     pub study_status_orig: Option<String>,
-    pub study_status: i32,
+    pub study_status_id: i32,
     pub date_registration: Option<String>,
     pub date_enrolment: Option<String>,
     pub target_size: Option<String>,
@@ -144,7 +144,7 @@ pub struct WHORecord
     pub meddra_condition_list: Option<Vec<MeddraCondition>>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize)]
 #[allow(dead_code)]
 pub struct SecondaryId
 {
@@ -285,8 +285,10 @@ pub struct WHOSummary
     pub sd_sid: String, 
     pub title: Option<String>,
     pub remote_url: Option<String>,
-    pub study_type: i32,
-    pub study_status: i32,
+    pub study_type: Option<String>,
+    pub study_type_id: i32,
+    pub study_status: Option<String>,
+    pub study_status_id: i32,
     pub secondary_ids: Option<Vec<SecondaryId>>,
     pub date_registration: Option<String>,
     pub reg_year: i32,
