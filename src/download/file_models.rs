@@ -284,28 +284,27 @@ pub struct WHOSummary
     pub source_id: i32, 
     pub sd_sid: String, 
     pub title: Option<String>,
-    pub remote_url: Option<String>,
+
     pub study_type: Option<String>,
     pub study_type_id: i32,
     pub study_status: Option<String>,
     pub study_status_id: i32,
-    pub secondary_ids: Option<Vec<SecondaryId>>,
-    pub date_registration: Option<String>,
+
+    pub sponsor_name: Option<String>,
+    pub sponsor_processed: Option<String>,
+    
+    pub sec_ids: Option<Vec<SecondaryId>>,
+    pub reg_sec_ids: Option<Vec<String>>,
+    pub oth_sec_ids: Option<Vec<String>>,
+
     pub reg_year: i32,
-    pub reg_month: i32,
-    pub reg_day: i32,
-    pub date_enrolment: Option<String>,
     pub enrol_year: i32,
-    pub enrol_month: i32,
-    pub enrol_day: i32,
     pub results_yes_no: Option<String>,
-    pub results_url_link: Option<String>,
-    pub results_url_protocol: Option<String>,
-    pub results_date_posted: Option<NaiveDate>,
-    pub results_date_first_pub: Option<NaiveDate>,
-    pub results_date_completed: Option<NaiveDate>,
-    pub table_name: String,
     pub country_list: Option<Vec<String>>,
-    pub date_last_rev: Option<NaiveDate>,
+
+    pub table_name: String,
+
+    pub date_last_rev_in_who: Option<NaiveDate>,
+    pub remote_url: Option<String>,
     pub dl_id: i32,
 }

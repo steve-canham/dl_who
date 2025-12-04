@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use chrono::{Utc};
 use std::collections::HashMap;
 use crate::{err::AppError, DownloadResult};
-use crate:: download::file_models::{WHOSummary, SecondaryId};
+use crate:: download::file_models::{WHOSummary};
 
 
 pub async fn get_next_download_id(pool: &Pool<Postgres>) -> Result<i32, AppError>{
@@ -83,10 +83,6 @@ pub async fn add_contents_record(file_path: &PathBuf, source_tots: &mut HashMap<
 pub async fn store_who_summary(rec: WHOSummary, full_path: PathBuf, pool: &Pool<Postgres>) -> Result<bool, AppError> {
 
     // WHO summary data needs to be modified before storage in db.
-
-    let reg_ids: Option<Vec::<String>>;
-    let oth_ids: Option<Vec::<String>>;
-    (reg_ids, oth_ids) = split_secids(rec.secondary_ids);
   
     let now = Utc::now();
     let local_path = if full_path == PathBuf::from("") {
@@ -96,7 +92,7 @@ pub async fn store_who_summary(rec: WHOSummary, full_path: PathBuf, pool: &Pool<
         Some(full_path.to_str().unwrap().replace("\\\\", "/").replace("\\", "/"))   // to support Windows
     };   
         
-    let mut sql = format!("SELECT EXISTS(SELECT 1 from bas.{} where sd_sid = '{}')", rec.table_name, rec.sd_sid); 
+    let mut sql = format!("SELECT EXISTS(SELECT 1 from dat.{} where sd_sid = '{}')", rec.table_name, rec.sd_sid); 
     let record_exists = sqlx::query_scalar(&sql).fetch_one(pool).await
                         .map_err(|e| AppError::SqlxError(e, sql.clone()))?;
 
@@ -104,45 +100,39 @@ pub async fn store_who_summary(rec: WHOSummary, full_path: PathBuf, pool: &Pool<
             
         // Update with new details.
         
-        sql = "Update bas.".to_string() + &rec.table_name + 
-                        r#" SET source_id = $1, remote_url = $2, title = $4, 
-                        study_type = $5, study_type_id = $6, study_status = $7, study_status_id = $8, 
-                        reg_sec_ids = $9, oth_sec_ids = $10, 
-                        reg_year = $11, reg_month = $12, reg_day = $13, 
-                        enrol_year = $14, enrol_month = $15, enrol_day = $16,
-                        results_yes_no = $17, results_url_link = $18, results_url_protocol = $19,  
-                        results_date_posted = $20, results_date_first_pub = $21, results_date_completed = $22, 
-                        country_list = $23, last_revised_in_who = $24, last_who_dl_id = $25,
-                        last_edited_in_sys = $26, local_path = $26
-                        where sd_sid = $3"#;
+        sql = "Update dat.".to_string() + &rec.table_name + 
+                        r#" SET source_id = $1, title = $3, 
+                        study_type = $4, study_type_id = $5, study_status = $6, study_status_id = $7, 
+                        sponsor_name = $8, sponsor_processed = $9,
+                        reg_sec_ids = $10, oth_sec_ids = $11, 
+                        reg_year = $12, enrol_year = $13, results_yes_no = $14, 
+                        country_list = $15, last_revised_in_who = $16, remote_url = $17, 
+                        last_who_dl_id = $18, last_edited_in_sys = $19, local_path = $20
+                        where sd_sid = $2"#;
     }
     else {
             
         // Create as a new record.
 
-        sql = "Insert into bas.".to_string() + &rec.table_name + r#"(source_id, remote_url, sd_sid, title, 
+        sql = "Insert into dat.".to_string() + &rec.table_name + r#"(source_id, sd_sid, title, 
                     study_type, study_type_id, study_status, study_status_id, 
-                    reg_sec_ids, oth_sec_ids, 
-                    reg_year, reg_month, reg_day, enrol_year, enrol_month, enrol_day,
-                    results_yes_no, results_url_link, results_url_protocol, 
-                    results_date_posted, results_date_first_pub, results_date_completed,
-                    country_list, last_revised_in_who, last_who_dl_id, last_edited_in_sys, local_path)
+                    sponsor_name, sponsor_processed, 
+                    reg_sec_ids, oth_sec_ids, reg_year, enrol_year, results_yes_no, 
+                    country_list, last_revised_in_who, remote_url, 
+                    last_who_dl_id, last_edited_in_sys, local_path)
                 VALUES
                 ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 
-                $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
-                $21, $22, $23, $24, $25, $26, $27)"#;
+                $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)"#;
     }
 
     sqlx::query(&sql)
-    .bind(rec.source_id).bind(rec.remote_url)
-    .bind(rec.sd_sid).bind(rec.title)
+    .bind(rec.source_id).bind(rec.sd_sid).bind(rec.title)
     .bind(rec.study_type).bind(rec.study_type_id).bind(rec.study_status).bind(rec.study_status_id)
-    .bind(reg_ids).bind(oth_ids)
-    .bind(rec.reg_year).bind(rec.reg_month).bind(rec.reg_day)
-    .bind(rec.enrol_year).bind(rec.enrol_month).bind(rec.enrol_day)
-    .bind(rec.results_yes_no).bind(rec.results_url_link).bind(rec.results_url_protocol)
-    .bind(rec.results_date_posted).bind(rec.results_date_first_pub).bind(rec.results_date_completed)
-    .bind(rec.country_list).bind(rec.date_last_rev).bind(rec.dl_id).bind(now).bind(local_path)
+    .bind(rec.sponsor_name).bind(rec.sponsor_processed)
+    .bind(rec.reg_sec_ids).bind(rec.oth_sec_ids)
+    .bind(rec.reg_year).bind(rec.enrol_year).bind(rec.results_yes_no)
+    .bind(rec.country_list).bind(rec.date_last_rev_in_who).bind(rec.remote_url)
+    .bind(rec.dl_id).bind(now).bind(local_path)
     .execute(pool).await
     .map_err(|e| AppError::SqlxError(e, sql))?;
 
@@ -150,7 +140,7 @@ pub async fn store_who_summary(rec: WHOSummary, full_path: PathBuf, pool: &Pool<
 
 }
  
-
+/* 
 fn split_secids (ids: Option<Vec<SecondaryId>>) -> (Option<Vec<String>>, Option<Vec<String>>) {
     
     let mut reg_ids = Vec::<String>::new();
@@ -185,7 +175,7 @@ fn split_secids (ids: Option<Vec<SecondaryId>>) -> (Option<Vec<String>>, Option<
         None => (None, None),
     }
 }
-
+*/
 
 /*
 

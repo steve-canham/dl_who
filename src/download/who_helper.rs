@@ -249,43 +249,44 @@ pub fn get_conditions(condition_list: &String, source_id: i32) -> (Option<Vec<St
                 // MedDRA version: 21.1  //Level: LLT  //Classification code 10022877  //Term: Invasive bladder cancer
                 // System Organ Class: 10029104 - Neoplasms benign, malignant and unspecified (incl cysts and polyps)",
 
-                let re = Regex::new(r"MedDRA version: (?<v>.+)Level").unwrap();
-                let version = match re.captures(&s1)
+                static RE_V: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"MedDRA version: (?<v>.+)Level").unwrap());
+                static RE_LEV: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"Level: (?<level>.+)Classific").unwrap());
+                static RE_CLASS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"Classification code (?<code>[0-9]+)").unwrap());
+                static RE_TERM: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"Term: (?<term>.+)System").unwrap());
+                static RE_SOCCODE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"System Organ Class: (?<soccode>[0-9]+)").unwrap());
+                static RE_SOC: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"System Organ Class: (.+) - (?<socterm>.+)$").unwrap());
+
+                let version = match RE_V.captures(&s1)
                 {
                     Some(c) => c["v"].to_string(),
                     None => "".to_string(),
                 };
- 
-                let re = Regex::new(r"Level: (?<level>.+)Classific").unwrap();
-                let level = match re.captures(&s1)
+
+                let level = match RE_LEV.captures(&s1)
                 {
                     Some(c) => c["level"].to_string(),
                     None => "".to_string(),
                 };
 
-                let re = Regex::new(r"Classification code (?<code>[0-9]+)").unwrap();
-                let code = match re.captures(&s1)
+                let code = match RE_CLASS.captures(&s1)
                 {
                     Some(c) => c["code"].to_string(),
                     None => "".to_string(),
                 };
-
-                let re = Regex::new(r"Term: (?<term>.+)System").unwrap();
-                let term = match re.captures(&s1)
+                
+                let term = match RE_TERM.captures(&s1)
                 {
                     Some(c) => c["term"].to_string(),
                     None => "".to_string(),
                 };
 
-                let re = Regex::new(r"System Organ Class: (?<soccode>[0-9]+)").unwrap();
-                let soc_code = match re.captures(&s1)
+                let soc_code = match RE_SOCCODE.captures(&s1)
                 {
                     Some(c) => c["soccode"].to_string(),
                     None => "".to_string(),
                 };
 
-                let re = Regex::new(r"System Organ Class: (.+) - (?<socterm>.+)$").unwrap();
-                let soc_term = match re.captures(&s1)
+                let soc_term = match RE_SOC.captures(&s1)
                 {
                     Some(c) => c["socterm"].to_string(),
                     None => "".to_string(),
@@ -865,6 +866,105 @@ pub fn add_phase(phase: &String) -> Option<WhoStudyFeature> {
 }
 
 
+pub fn split_secids (ids: &Option<Vec<SecondaryId>>) -> (Option<Vec<String>>, Option<Vec<String>>) {
+    
+    let mut reg_ids = Vec::<String>::new();
+    let mut oth_ids = Vec::<String>::new();
+
+    match ids {
+        Some(sids) => {
+            if sids.len() > 0 {
+                for secid in sids {
+                   if secid.sec_id_type_id == 11 {
+                       reg_ids.push(format!("{}::{}", secid.sec_id_source, secid.processed_id))
+                   }
+                   else {
+                       oth_ids.push(secid.sec_id.clone())
+                   }
+                }
+
+                let reg_sec_ids = match reg_ids.len() {
+                    0 => None,
+                  _ => Some(reg_ids)
+                };
+                let oth_sec_ids = match oth_ids.len() {
+                    0 => None,
+                    _ => Some(oth_ids)
+                };
+                (reg_sec_ids, oth_sec_ids)
+           }
+           else {
+            (None, None)
+           }
+        },
+        None => (None, None),
+    }
+}
+
+
+pub fn process_sponsor_name(sponsor: &Option<String>) -> Option<String> {
+
+    // put to lower case
+    match sponsor {
+        Some(s) => {
+            let mut s2 = s.trim().to_lowercase();
+
+            s2 = s2.replace(".", "");
+            s2 = s2.replace(",", "");
+            s2 = s2.replace("'", "");    
+            s2 = s2.replace("’", "");  
+
+            s2 = s2.replace(" of ", " ");
+            s2 = s2.replace(" de ", " ");
+            s2 = s2.replace(" dat ", " ");
+            s2 = s2.replace(" et ", " ");
+            s2 = s2.replace(" y ", " ");
+            s2 = s2.replace(" & ", " ");
+            s2 = s2.replace(" for ", " ");
+            
+            static RE_SP1: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^the ").unwrap());
+            static RE_SP2: LazyLock<Regex> = LazyLock::new(|| Regex::new(r" co ltd$").unwrap());
+            static RE_SP3: LazyLock<Regex> = LazyLock::new(|| Regex::new(r" ltd$").unwrap());
+            static RE_SP4: LazyLock<Regex> = LazyLock::new(|| Regex::new(r" llc$").unwrap());
+            static RE_SP5: LazyLock<Regex> = LazyLock::new(|| Regex::new(r" inc$").unwrap());
+            static RE_SP6: LazyLock<Regex> = LazyLock::new(|| Regex::new(r" spa$").unwrap());
+            static RE_SP7: LazyLock<Regex> = LazyLock::new(|| Regex::new(r" ab$").unwrap());
+            static RE_SP8: LazyLock<Regex> = LazyLock::new(|| Regex::new(r" ag$").unwrap());
+            static RE_SP9: LazyLock<Regex> = LazyLock::new(|| Regex::new(r" pty$").unwrap());
+            static RE_SP10: LazyLock<Regex> = LazyLock::new(|| Regex::new(r" gmbh$").unwrap());
+            static RE_SP11: LazyLock<Regex> = LazyLock::new(|| Regex::new(r" sa$").unwrap());
+            static RE_SP12: LazyLock<Regex> = LazyLock::new(|| Regex::new(r" a/s$").unwrap());
+            static RE_SP13: LazyLock<Regex> = LazyLock::new(|| Regex::new(r" corporation$").unwrap());
+            static RE_SP14: LazyLock<Regex> = LazyLock::new(|| Regex::new(r" spoo$").unwrap());
+
+            // at beginning...
+
+            s2 = RE_SP1.replace(&s2, "").to_string();
+            
+            // at end
+
+            s2 = RE_SP2.replace(&s2, "").to_string();
+            s2 = RE_SP3.replace(&s2, "").to_string();  
+            s2 = RE_SP4.replace(&s2, "").to_string();
+            s2 = RE_SP5.replace(&s2, "").to_string();
+            s2 = RE_SP6.replace(&s2, "").to_string();
+            s2 = RE_SP7.replace(&s2, "").to_string();
+            s2 = RE_SP8.replace(&s2, "").to_string();
+            s2 = RE_SP9.replace(&s2, "").to_string();
+            s2 = RE_SP10.replace(&s2, "").to_string();  
+            s2 = RE_SP11.replace(&s2, "").to_string();
+            s2 = RE_SP12.replace(&s2, "").to_string();
+            s2 = RE_SP13.replace(&s2, "").to_string();
+            s2 = RE_SP14.replace(&s2, "").to_string();
+
+            Some(s2)
+        },
+        None => None,
+    }
+
+}
+
+
 pub fn  split_ids(sd_sid: &String, in_string: &String, source_field: &str) -> Vec<SecondaryId> {
         
     // in_string already known to be non-null, non-empty.
@@ -979,6 +1079,7 @@ pub fn get_sec_id_details(sec_id: &str) -> SecIdBase {
         if sid.is_none() {
             
             // Return the original secondary id without any source.
+
             sid = Some(SecIdBase{
                 processed_id: sec_id.to_string(),
                 sec_id_source: 0, 
@@ -998,8 +1099,8 @@ pub fn get_sec_id_details(sec_id: &str) -> SecIdBase {
 fn contains_nct(hay: &str) -> Option<SecIdBase> {
     if hay.contains("NCT") {
         let hay2 = hay.replace("NCT ", "NCT").replace("NCTNumber", "");
-        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"NCT[0-9]{8}").unwrap());
-        match RE.captures(&hay2) {
+        static RE_NCT: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"NCT[0-9]{8}").unwrap());
+        match RE_NCT.captures(&hay2) {
             Some(s) => {
             let id = &s[0];
             if id == "NCT11111111" || id == "NCT99999999" 
@@ -1025,9 +1126,9 @@ fn contains_nct(hay: &str) -> Option<SecIdBase> {
 }
 
 fn contains_euctr(hay: &str) -> Option<SecIdBase> {
-    static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"20[0-9]{2}-[0-9]{6}-[0-9]{2}").unwrap());
+    static RE_EUCTR: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"20[0-9]{2}-[0-9]{6}-[0-9]{2}").unwrap());
     static RE_CTIS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"20[2-9][0-9]-5[0-9]{5}-[0-9]{2}").unwrap());
-    match RE.captures(hay) {
+    match RE_EUCTR.captures(hay) {
         Some(s) => {
             match RE_CTIS.captures(hay) {
                 Some (s1) => {
@@ -1062,8 +1163,8 @@ fn contains_isrctn(hay: &str) -> Option<SecIdBase> {
         hay2 = hay2.replace("ISRCTN(International", "ISRCTN");
         hay2 = hay2.replace("ISRCTN: ", "ISRCTN");
         hay2 = hay2.replace("ISRCTNISRCTN", "ISRCTN");
-        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"ISRCTN[0-9]{8}").unwrap());
-        match RE.captures(&hay2) {
+        static RE_ISRCTN: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"ISRCTN[0-9]{8}").unwrap());
+        match RE_ISRCTN.captures(&hay2) {
             Some(s) => {
                 let id = &s[0];
                 if id == "ISRCTN00000000" {
@@ -1088,8 +1189,8 @@ fn contains_isrctn(hay: &str) -> Option<SecIdBase> {
 
 fn contains_actrn(hay: &str) -> Option<SecIdBase> {
     if hay.contains("ACTRN") {
-        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"ACTRN[0-9]{14}").unwrap());
-        match RE.captures(hay) {
+        static RE_ACTRN: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"ACTRN[0-9]{14}").unwrap());
+        match RE_ACTRN.captures(hay) {
             Some(s) => {
                 let id = &s[0];
                 Some(SecIdBase{
@@ -1109,8 +1210,8 @@ fn contains_actrn(hay: &str) -> Option<SecIdBase> {
 
 fn contains_drks(hay: &str) -> Option<SecIdBase> {
     if hay.contains("DRKS") {
-        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"DRKS[0-9]{8}").unwrap());
-        match RE.captures(hay) {
+        static RE_DRKS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"DRKS[0-9]{8}").unwrap());
+        match RE_DRKS.captures(hay) {
             Some(s) => {
                 let id = &s[0];
                 Some(SecIdBase{
@@ -1130,14 +1231,14 @@ fn contains_drks(hay: &str) -> Option<SecIdBase> {
 
 fn contains_ctri(hay: &str) -> Option<SecIdBase> {
     if hay.contains("CTRI") {
-        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"CTRI/[0-9]{4}/[0-9]{2,3}/[0-9]{6}").unwrap());
-        match RE.captures(hay) {
+        static RE_CTRI: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"CTRI/[0-9]{4}/[0-9]{2,3}/[0-9]{6}").unwrap());
+        match RE_CTRI.captures(hay) {
             Some(s) => {
                 let id = &s[0];
                 let processed_id = id.replace("/", "-");  // internal representation for CTRI
                 Some(SecIdBase{
                     processed_id: processed_id,
-                    sec_id_source: 100120, 
+                    sec_id_source: 100121, 
                     sec_id_type_id: 11,
                     sec_id_type: "Trial Registry ID".to_string(),
                 })
@@ -1151,8 +1252,8 @@ fn contains_ctri(hay: &str) -> Option<SecIdBase> {
 }
 
 fn contains_who(hay: &str) -> Option<SecIdBase> {
-    static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"1111-[0-9]{4}-[0-9]{4}").unwrap());
-    match RE.captures(hay) {
+    static RE_WHO: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"1111-[0-9]{4}-[0-9]{4}").unwrap());
+    match RE_WHO.captures(hay) {
         Some(s) => {
             let id = &s[0];
             let processed_id = format!("U{}", id);  // internal representation for CTRI
@@ -1169,11 +1270,11 @@ fn contains_who(hay: &str) -> Option<SecIdBase> {
 
 fn contains_umin(hay: &str) -> Option<SecIdBase> {
     if hay.contains("UMIN") {
-        static RE1: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"UMIN[0-9]{9}").unwrap());
-        static RE2: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"UMIN-CTR[0-9]{9}").unwrap());
-        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[0-9]{9}").unwrap());
-        if RE1.is_match(hay) || RE2.is_match(hay) {
-            match RE.captures(hay) {
+        static RE_UMIN1: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"UMIN[0-9]{9}").unwrap());
+        static RE_UMIN2: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"UMIN-CTR[0-9]{9}").unwrap());
+        static RE_UMIN: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[0-9]{9}").unwrap());
+        if RE_UMIN1.is_match(hay) || RE_UMIN2.is_match(hay) {
+            match RE_UMIN.captures(hay) {
                 Some(s) => {
                     let id = &s[0];
                     let processed_id = format!("JPRN-UMIN{}", id);  
@@ -1198,9 +1299,9 @@ fn contains_umin(hay: &str) -> Option<SecIdBase> {
 
 fn contains_jcrt(hay: &str) -> Option<SecIdBase> {
     if hay.contains("jRCT") {
-        static RE1: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"jRCTs[0-9]{9}").unwrap());
-        static RE2: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"jRCT[0-9]{10}").unwrap());
-        match RE1.captures(hay) {
+        static RE_JRCT1: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"jRCTs[0-9]{9}").unwrap());
+        static RE_JRCT2: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"jRCT[0-9]{10}").unwrap());
+        match RE_JRCT1.captures(hay) {
             Some(s1) => {
                 let id = &s1[0];
                 let processed_id = format!("JPRN-{}", id);  // internal representation for CTRI
@@ -1213,7 +1314,7 @@ fn contains_jcrt(hay: &str) -> Option<SecIdBase> {
             },
 
             None => {
-                match RE2.captures(hay) {
+                match RE_JRCT2.captures(hay) {
                     Some(s2) => {
                         let id = &s2[0];
                         let processed_id = format!("JPRN-{}", id);  // internal representation for CTRI
@@ -1236,9 +1337,9 @@ fn contains_jcrt(hay: &str) -> Option<SecIdBase> {
 
 fn contains_jprn(hay: &str) -> Option<SecIdBase> {
     if hay.starts_with("JPRN") {
-        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[0-9]{8}").unwrap());
-        if RE.is_match(hay) {
-            match RE.captures(hay) {
+        static RE_JPRN: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[0-9]{8}").unwrap());
+        if RE_JPRN.is_match(hay) {
+            match RE_JPRN.captures(hay) {
                 Some(s) => {
                     let id = &s[0];
                     let processed_id = format!("JPRN-UMIN{}", id);  // internal representation for CTRI
@@ -1268,8 +1369,8 @@ fn contains_jprn(hay: &str) -> Option<SecIdBase> {
 
 fn contains_nl(hay: &str) -> Option<SecIdBase> {
     if hay.starts_with("NL") {
-        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^NL\d{1,4}$").unwrap());
-        match RE.captures(hay) {
+        static RE_NL: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^NL\d{1,4}$").unwrap());
+        match RE_NL.captures(hay) {
             Some(s) => {
                 let id = &s[0];
                 Some(SecIdBase{
@@ -1289,8 +1390,8 @@ fn contains_nl(hay: &str) -> Option<SecIdBase> {
 
 fn contains_ntr(hay: &str) -> Option<SecIdBase> {
     if hay.starts_with("NTR") {
-        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^NTR\d{1,4}$").unwrap());
-        match RE.captures(hay) {
+        static RE_NTR: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^NTR\d{1,4}$").unwrap());
+        match RE_NTR.captures(hay) {
             Some(s) => {
                 let id = &s[0];
                 Some(SecIdBase{
@@ -1310,8 +1411,8 @@ fn contains_ntr(hay: &str) -> Option<SecIdBase> {
 
 fn contains_rpuec(hay: &str) -> Option<SecIdBase> {
     if hay.starts_with("PER") {
-        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^PER-[0-9]{3}-").unwrap());
-        match RE.captures(hay) {
+        static RE_PER: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^PER-[0-9]{3}-").unwrap());
+        match RE_PER.captures(hay) {
             Some(_s) => { 
                 let id = hay;
                 Some(SecIdBase{

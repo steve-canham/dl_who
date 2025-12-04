@@ -7,8 +7,7 @@ pub mod gen_helper;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use crate::{AppError, DownloadResult};
-use data_access::{add_new_single_file_record, 
-    add_contents_record, store_who_summary};
+use data_access::{add_new_single_file_record, add_contents_record, store_who_summary};
 use who_helper::{get_db_name, split_by_year};
 use file_models::{WHOLine, WHOSummary};
 use std::fs;

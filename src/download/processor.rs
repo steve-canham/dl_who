@@ -7,9 +7,192 @@ use std::collections::HashSet;
 use super::who_helper::{get_db_name, get_source_id, get_type, get_status, 
     get_conditions, split_and_dedup_countries, add_study_purpose,
     add_int_study_features, add_obs_study_features, add_eu_design_features,
-    add_masking, add_phase, add_eu_phase, split_ids};
+    add_masking, add_phase, add_eu_phase, split_ids, split_secids, process_sponsor_name};
 use super::gen_helper::{StringExtensions, DateExtensions};
 use super::file_models::{WHOLine, WHORecord, WhoStudyFeature, SecondaryId, WHOSummary};
+
+
+
+pub fn summarise_line(w: &WHOLine, dl_id: i32, line_number: i32) -> Option<WHOSummary>  {
+
+    let sid = w.trial_id.replace("/", "-").replace("\\", "-").replace(".", "-");
+    let mut sd_sid = sid.trim().to_string();
+    
+    if sd_sid == "" || sd_sid == "null" || sd_sid == "NULL" {        // Seems to happen, or has happened in the past, with one Dutch trial.
+        error!("Well that's weird - no study id on line {}!", line_number);
+        return None;
+    }
+
+    let source_id = get_source_id(&sd_sid);
+    if source_id == 0
+    {
+        error!("Well that's weird - can't match the study id's {} source on line {}!", sd_sid, line_number);
+        return None;
+    }
+
+    if source_id == 100123 {
+        sd_sid = sd_sid[0..19].to_string(); // lose country specific suffix
+    }
+   
+    let mut title = w.pub_title.replace_unicodes();
+    if title.is_none() {
+        title = w.scientific_title.replace_unicodes();
+    }
+    
+    let study_type = w.study_type.tidy();
+    let study_type_id = match &study_type {
+         Some(t) => get_type(&t),
+         None => 0
+    };
+
+    let study_status = w.recruitment_status.tidy();
+
+    //Opportunity for a let-chain!
+    
+    let study_status_id = match &study_status {
+         Some(s) => {
+            if let Some(yn) = w.results_yes_no.tidy() && yn.to_lowercase() == "yes" {
+                30   // study completed
+            }
+            else {
+                get_status(&s, source_id)
+            }
+         },
+         None => 0
+    };
+
+
+    let sponsor_name = w.primary_sponsor.tidy();
+    let sponsor_processed = process_sponsor_name(&sponsor_name);
+
+    let mut secondary_ids: Vec<SecondaryId> = Vec::new();
+
+    if let Some(s) = w.sec_ids.tidy()  {
+        let initial_ids = Some(split_ids(&sd_sid, &s, "secondary ids"));
+        if let Some(mut ids) = initial_ids {
+            secondary_ids.append(&mut ids);
+        }
+    }
+    
+    if let Some(s) = w.bridging_flag.tidy() {
+        let bridge_ids = Some(split_ids(&sd_sid, &s, "bridging flag"));
+        if let Some(mut ids) = bridge_ids {
+            secondary_ids.append(&mut ids);
+        }
+    }
+
+    if let Some(s) = w.childs.tidy()  {
+        let child_ids = Some(split_ids(&sd_sid, &s, "bridged child recs"));
+        if let Some(mut ids) = child_ids {
+            secondary_ids.append(&mut ids);
+        }
+    }
+
+    // Secondary ids are often duplicated, need to be de-duplicated
+    // using the .processed_id field
+
+    let secids = match secondary_ids.len() {
+        0 => None, 
+        _ =>  {  
+                let mut revised_list: Vec<SecondaryId> = Vec::new();
+                if secondary_ids.len() == 1 {
+                    revised_list = secondary_ids;
+                }
+                else {
+                    let mut uniques:HashSet<String> = HashSet::new();
+                    for secid in  secondary_ids {
+                        if uniques.insert(secid.processed_id.clone()) {
+                            revised_list.push(secid);
+                        }
+                    }
+                }
+                Some(revised_list)
+            },
+    };
+
+    // Finally split the ids into two types - either trial registry Id or others;
+    // and construct string vector from each
+    
+
+    let reg_ids: Option<Vec::<String>>;
+    let oth_ids: Option<Vec::<String>>;
+    (reg_ids, oth_ids) = split_secids(&secids);
+    
+   
+    let date_last_rev = get_naive_date (&w.last_updated);
+    
+    let reg_year: i32;
+    let date_reg = w.date_registration.as_iso_date();
+    (reg_year, _ , _) = split_iso_date(&date_reg);
+
+    let enrol_year: i32;
+    let date_enrolment = w.date_enrollement.as_iso_date();
+    (enrol_year, _, _) = split_iso_date(&date_enrolment);
+
+    
+    let mut table_name = get_db_name(source_id);
+    let mut suffix: &str;
+
+    if source_id == 100120 {
+        if reg_year < 2010 {
+            suffix = "_lt_2010";
+        }
+        else if reg_year < 2015 {
+            suffix = "_2010_14";
+        }
+        else if reg_year < 2020 {
+            suffix = "_2015_19";
+        }
+        else if reg_year < 2025 {
+            suffix = "_2020_24";
+        }
+        else {
+            suffix = "_2025_29";
+        }
+        table_name = table_name + suffix;
+    }
+
+    if source_id == 100118 || source_id == 100121 
+        || source_id == 100127 {
+        if reg_year < 2020 {
+            suffix = "_lt_2020";
+        }
+        else {
+            suffix = "_ge_2020";
+        }
+        table_name = table_name + suffix;
+    }
+    
+
+    let country_list = w.countries.tidy();
+    let countries = match country_list {
+        Some(c) => {split_and_dedup_countries(source_id, &c)}
+        None => None,
+    };
+
+    Some(WHOSummary {
+        source_id: source_id, 
+        sd_sid: sd_sid, 
+        title: title,
+        remote_url: w.url.tidy(),
+        study_type: study_type,
+        study_type_id: study_type_id,
+        study_status: study_status,
+        study_status_id: study_status_id,
+        sponsor_name: sponsor_name,
+        sponsor_processed: sponsor_processed,
+        sec_ids: secids,
+        reg_sec_ids: reg_ids,
+        oth_sec_ids: oth_ids,
+        reg_year: reg_year,
+        enrol_year: enrol_year,
+        results_yes_no: w.results_yes_no.tidy(),
+        table_name: table_name,
+        country_list: countries,
+        date_last_rev_in_who: date_last_rev,  // assumed to be always present
+        dl_id: dl_id,
+    })
+}
 
 
 pub fn process_line(w: WHOLine, summ: &WHOSummary) -> Option<WHORecord>  {
@@ -236,7 +419,6 @@ pub fn process_line(w: WHOLine, summ: &WHOSummary) -> Option<WHORecord>  {
         },
         None => None,
      };
-   
     
     Some(WHORecord  {
         source_id: source_id, 
@@ -255,6 +437,7 @@ pub fn process_line(w: WHOLine, summ: &WHOSummary) -> Option<WHORecord>  {
         scientific_contact_affiliation: w.sci_contact_affiliation.tidy(),
         study_type_orig: summ.study_type.to_owned(),
         study_type_id: summ.study_type_id,
+
         date_registration: w.date_registration.as_iso_date(),
         date_enrolment: w.date_enrollement.as_iso_date(),
         target_size: w.target_size.tidy(),
@@ -264,6 +447,7 @@ pub fn process_line(w: WHOLine, summ: &WHOSummary) -> Option<WHORecord>  {
         secondary_sponsors: w.secondary_sponsors.tidy(),
         source_support: w.source_support.tidy(),
         interventions: w.interventions.replace_tags_and_unicodes(),
+
         agemin: agemin,
         agemin_units:agemin_units,
         agemax: agemax,
@@ -273,214 +457,34 @@ pub fn process_line(w: WHOLine, summ: &WHOSummary) -> Option<WHORecord>  {
         exclusion_criteria: exc_crit,
         primary_outcome: w.primary_outcome.replace_tags_and_unicodes(),
         secondary_outcomes: w.secondary_outcomes.replace_tags_and_unicodes(),
+
         bridging_flag: w.bridging_flag.tidy(),
         bridged_type: w.bridged_type.tidy(),
         childs: w.childs.tidy(),
         type_enrolment: w.type_enrolment.tidy(),
         retrospective_flag: w.retrospective_flag.tidy(),
         results_actual_enrollment: w.results_actual_enrollment.tidy(),
+        
+        results_yes_no: w.results_yes_no.tidy(),       
         results_url_link: w.results_url_link.tidy(),
         results_summary: w.results_summary.tidy(),
         results_date_posted: w.results_date_posted.as_iso_date(),
         results_date_first_pub: w.results_date_first_pub.as_iso_date(),
         results_url_protocol: w.results_url_protocol.tidy(),
+        results_date_completed: w.results_date_completed.as_iso_date(),
+
         ipd_plan: ipd_plan,
         ipd_description:ipd_description,
-        results_date_completed: w.results_date_completed.as_iso_date(),
-        results_yes_no: w.results_yes_no.tidy(),
         design_string: design_orig,
         phase_string: phase_orig,
         country_list: summ.country_list.to_owned(),
-        secondary_ids: summ.secondary_ids.to_owned(),
+        secondary_ids: summ.sec_ids.to_owned(),
         study_features: study_features,
         condition_list: conditions,
         meddra_condition_list: meddraconds,
     })
 }
 
-
-pub fn summarise_line(w: &WHOLine, dl_id: i32, line_number: i32) -> Option<WHOSummary>  {
-
-    let sid = w.trial_id.replace("/", "-").replace("\\", "-").replace(".", "-");
-    let mut sd_sid = sid.trim().to_string();
-    
-    if sd_sid == "" || sd_sid == "null" || sd_sid == "NULL" {        // Seems to happen, or has happened in the past, with one Dutch trial.
-        error!("Well that's weird - no study id on line {}!", line_number);
-        return None;
-    }
-
-    let source_id = get_source_id(&sd_sid);
-    if source_id == 0
-    {
-        error!("Well that's weird - can't match the study id's {} source on line {}!", sd_sid, line_number);
-        return None;
-    }
-
-    if source_id == 100123 {
-        sd_sid = sd_sid[0..19].to_string(); // lose country specific suffix
-    }
-   
-    let mut title = w.pub_title.replace_unicodes();
-    if title.is_none() {
-        title = w.scientific_title.replace_unicodes();
-    }
-    
-    let study_type = w.study_type.tidy();
-    let study_type_id = match &study_type {
-         Some(t) => get_type(&t),
-         None => 0
-    };
-
-    let study_status = w.recruitment_status.tidy();
-   
-    //Opportunity for a let-chain!
-    
-    let study_status_id = match &study_status {
-         Some(s) => {
-            if let Some(yn) = w.results_yes_no.tidy() && yn.to_lowercase() == "yes" {
-                30   // study completed
-            }
-            else {
-                get_status(&s, source_id)
-            }
-         },
-         None => 0
-    };
-
-    let mut secondary_ids: Vec<SecondaryId> = Vec::new();
-
-    if let Some(s) = w.sec_ids.tidy()  {
-        let initial_ids = Some(split_ids(&sd_sid, &s, "secondary ids"));
-        if let Some(mut ids) = initial_ids {
-            secondary_ids.append(&mut ids);
-        }
-    }
-    
-    if let Some(s) = w.bridging_flag.tidy() {
-        let bridge_ids = Some(split_ids(&sd_sid, &s, "bridging flag"));
-        if let Some(mut ids) = bridge_ids {
-            secondary_ids.append(&mut ids);
-        }
-    }
-
-    if let Some(s) = w.childs.tidy()  {
-        let child_ids = Some(split_ids(&sd_sid, &s, "bridged child recs"));
-        if let Some(mut ids) = child_ids {
-            secondary_ids.append(&mut ids);
-        }
-    }
-
-    // Secondary ids are often duplicated, need to be de-duplicated
-    // using the .processed_id field
-
-    let secids = match secondary_ids.len() {
-        0 => None, 
-        _ =>  {  
-                let mut revised_list: Vec<SecondaryId> = Vec::new();
-                if secondary_ids.len() == 1 {
-                    revised_list = secondary_ids;
-                }
-                else {
-                    let mut uniques:HashSet<String> = HashSet::new();
-                    for secid in  secondary_ids {
-                        if uniques.insert(secid.processed_id.clone()) {
-                            revised_list.push(secid);
-                        }
-                    }
-                }
-                Some(revised_list)
-            },
-    };
-   
-
-    let res_posted = get_naive_date (&w.results_date_posted);
-    let res_first_pub = get_naive_date (&w.results_date_first_pub);
-    let res_completed = get_naive_date (&w.results_date_completed);
-    let date_last_rev = get_naive_date (&w.last_updated);
-    
-    let date_reg = w.date_registration.as_iso_date();
-    let reg_year: i32;
-    let reg_month: i32;
-    let reg_day: i32;
-    (reg_year, reg_month, reg_day) = split_iso_date(&date_reg);
-
-    let date_enrolment = w.date_enrollement.as_iso_date();
-    let enrol_year: i32;
-    let enrol_month: i32;
-    let enrol_day: i32;
-    (enrol_year, enrol_month, enrol_day) = split_iso_date(&date_enrolment);
-
-    
-    let mut table_name = get_db_name(source_id);
-    let mut suffix: &str;
-
-    if source_id == 100120 {
-        if reg_year < 2010 {
-            suffix = "_lt_2010";
-        }
-        else if reg_year < 2015 {
-            suffix = "_2010_14";
-        }
-        else if reg_year < 2020 {
-            suffix = "_2015_19";
-        }
-        else if reg_year < 2025 {
-            suffix = "_2020_24";
-        }
-        else {
-            suffix = "_2025_29";
-        }
-        table_name = table_name + suffix;
-    }
-
-    if source_id == 100118 || source_id == 100121 
-        || source_id == 100127 {
-        if reg_year < 2020 {
-            suffix = "_lt_2020";
-        }
-        else {
-            suffix = "_ge_2020";
-        }
-        table_name = table_name + suffix;
-    }
-    
-
-    let country_list = w.countries.tidy();
-    let countries = match country_list {
-        Some(c) => {split_and_dedup_countries(source_id, &c)}
-        None => None,
-    };
-
-    Some(WHOSummary {
-        source_id: source_id, 
-        sd_sid: sd_sid, 
-        title: title,
-        remote_url: w.url.tidy(),
-        study_type: study_type,
-        study_type_id: study_type_id,
-        study_status: study_status,
-        study_status_id: study_status_id,
-        secondary_ids: secids,
-        date_registration: date_reg,
-        reg_year: reg_year,
-        reg_month: reg_month,
-        reg_day: reg_day,
-        date_enrolment: date_enrolment,
-        enrol_year: enrol_year,
-        enrol_month: enrol_month,
-        enrol_day: enrol_day,        
-        results_yes_no: w.results_yes_no.tidy(),
-        results_url_link: w.results_url_link.tidy(),
-        results_url_protocol: w.results_url_protocol.tidy(),
-        results_date_posted: res_posted,
-        results_date_first_pub: res_first_pub,
-        results_date_completed: res_completed,
-        table_name: table_name,
-        country_list: countries,
-        date_last_rev: date_last_rev,  // assumed to be always present
-        dl_id: dl_id,
-    })
-}
 
 
 
