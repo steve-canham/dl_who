@@ -56,7 +56,7 @@ pub async fn download(args: Vec<OsString>) -> Result<(), AppError> {
         
         // do the data aggregation process using the data already in the DB
         // rather than download data from files
-
+        aggregate::identify_linked_studies(&src_pool).await?;
         aggregate::aggregate_who_data(&src_pool).await?;
 
     }

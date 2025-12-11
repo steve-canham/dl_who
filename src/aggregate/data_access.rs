@@ -1,11 +1,10 @@
 use sqlx::{Pool, Postgres};
 use crate::AppError;
-use crate::setup::fetch_db_pars;
 
-use super::BasTable;
+use super::structs::BasTable;
 
 
-pub async fn execute_sql(sql: &str, pool: &Pool<Postgres>) -> Result<u64, AppError> {
+async fn execute_sql(sql: &str, pool: &Pool<Postgres>) -> Result<u64, AppError> {
 
     let res = sqlx::raw_sql(sql).execute(pool)
             .await.map_err(|e| AppError::SqlxError(e, sql.to_string()))?;
@@ -255,33 +254,6 @@ pub async fn set_up_data_grids (pool: &Pool<Postgres>) -> Result<(), AppError> {
 }
 
 
-pub async fn set_up_sec_id_tables (pool: &Pool<Postgres>) -> Result<(), AppError> {
-
-    let sql = r#"create schema if not exists sec;"#;
-    execute_sql(sql, pool).await?;
-
-    let sql = r#"drop table if exists sec.temp_tr_sec_ids;
-        create table sec.temp_tr_sec_ids (
-          pri_source     int4
-        , pri_sid        varchar 
-        , sec_source     int4
-        , sec_sid        varchar
-    );"#;
-    execute_sql(sql, pool).await?;
-
-    let sql = r#"drop table if exists sec.temp_oth_sec_ids;
-        create table sec.temp_oth_sec_ids (
-          pri_source     int4
-        , pri_sid        varchar 
-        , sponsor        varchar
-        , sec_id         varchar
-    );"#;
-    execute_sql(sql, pool).await?;
-
-    Ok(())
-}
-
-
 pub async fn fetch_table_list(pool: &Pool<Postgres>) -> Result<Vec<BasTable>, AppError> {
   
   let sql = r#"select table_name, source_id, source_name
@@ -294,29 +266,15 @@ pub async fn fetch_table_list(pool: &Pool<Postgres>) -> Result<Vec<BasTable>, Ap
 }
 
 
-pub async fn process_sec_ids(entry: &BasTable, pool: &Pool<Postgres>) -> Result<(u64, u64), AppError> {
 
-    let _ = entry.source_id;
-    let _ = entry.source_name; // to avoid warnings for now
+// Get the possible other matches using sponsor name and sponsor id
+// Only get pairings - groups of more than 2 very likely to be funding grant ids
+// (as, very probably, are some of the pairs)
 
-    let sql = format!(r#"insert into sec.temp_tr_sec_ids (pri_source, pri_sid, sec_source, sec_sid)
-        select source_id, sd_sid, SPLIT_PART(unnest(reg_sec_ids), '::', 1)::int4, SPLIT_PART(unnest(reg_sec_ids), '::', 2)
-        from dat.{}
-        where reg_sec_ids is not null
-        order by sd_sid;"#, entry.table_name);
 
-    let tr = execute_sql(&sql, pool).await?;
-        
-    let sql = format!(r#"insert into sec.temp_oth_sec_ids (pri_source, pri_sid, sponsor, sec_id)
-        select source_id, sd_sid, sponsor_processed, unnest(oth_sec_ids) 
-        from dat.{}
-        where oth_sec_ids is not null
-        order by sd_sid;"#, entry.table_name);
 
-    let oth = execute_sql(&sql, pool).await?;
 
-    Ok((tr, oth))
-}
+
 
 /* 
 pub async fn store_reg_numbers(entry: &BasTable, pool: &Pool<Postgres>) -> Result<u64, AppError> {
@@ -770,67 +728,3 @@ pub async fn insert_grid_status_year_data(pool: &Pool<Postgres>) -> Result<(), A
 }
 
 */
-
-pub async fn set_up_ftw_schema(data_source: &str, pool: &Pool<Postgres>) -> Result<(), AppError> {
-    
-    // First get DB parameters - only proceed if they are available
-    let dbp = fetch_db_pars()?;
-  
-    // Derive database name and source schema - 
-    // data_source is provided as source_db.source_schema, e.g. "cxt.lups".
-    // Split into two constituent parts...
-    
-    let source_parts: Vec<&str> = data_source.split('.').collect();
-    let source_db_name = source_parts[0];
-    let source_schema = source_parts[1];
-
-    // source db name used as the server name 
-    // *** N.B. local host assumed here  *** would nade changing if not the case
-    // dest schema will be source db and schema, separated by an underscore
-
-    let dest_schema = data_source.replace(".", "_");
-
-    let sql = format!(r#"CREATE EXTENSION IF NOT EXISTS postgres_fdw WITH SCHEMA met;
-            CREATE SERVER IF NOT EXISTS {}
-            FOREIGN DATA WRAPPER postgres_fdw
-            OPTIONS (host '{}', dbname '{}', port '{}');"#,
-            source_db_name, dbp.db_host, source_db_name, dbp.db_port);
-        
-    execute_sql(&sql, pool).await?;   
-
-    let sql = format!(r#"CREATE USER MAPPING IF NOT EXISTS FOR CURRENT_USER
-            SERVER {}
-            OPTIONS (user '{}', password '{}');"#, 
-            source_db_name, dbp.db_user, dbp.db_password);
-
-    execute_sql(&sql, pool).await?;   
-    
-    let sql = format!(r#"DROP SCHEMA IF EXISTS {} cascade;
-            CREATE SCHEMA {};
-            IMPORT FOREIGN SCHEMA {}
-            FROM SERVER {}
-            INTO {};"#, dest_schema, dest_schema, source_schema, source_db_name, dest_schema);
-
-    execute_sql(&sql, pool).await?;
-  
-    Ok(())
-}
-
-
-pub async fn drop_ftw_schema(dest_schema: &str, pool: &Pool<Postgres>) -> Result<(), AppError> {
-
-    // Derive database name a - 
-    // dest_schema is provided as <source_db>_<source_schema>, e.g. "cxt_lups".
-    // Split into two constituent parts...
-    
-    let source_parts: Vec<&str> = dest_schema.split('_').collect();
-    let source_db_name = source_parts[0];
-    let sql = format!(r#"DROP SCHEMA IF EXISTS {} cascade;
-                    DROP USER MAPPING IF EXISTS FOR CURRENT_USER SERVER {} ;
-                    DROP SERVER IF EXISTS {} ;"#, dest_schema, source_db_name, source_db_name);
-
-    execute_sql(&sql, pool).await?;
-
-    Ok(())
-}
-
