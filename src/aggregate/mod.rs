@@ -9,27 +9,27 @@ use log::info;
 
 
 
-
 pub async fn identify_linked_studies(pool: &Pool<Postgres>) -> Result<(), AppError> {
  
-    // First get the list of source tables
+    // First get the list of source tables, and link to the source parameter tables in mon
 
     let tables = data_access::fetch_table_list(pool).await?;
-        
+    ftw::set_up_schema("mon.src", pool).await?;
+
     // Then, collect the secondary ids into two temporary tables
     // One for the secondary ids that are trial registry ids, 
     // the second for 'other' ids, mostly from sponsors and funders.
         
+    dedup::set_up_init_sec_id_tables(pool).await?;
     let mut tr_ids_total = 0;
     let mut oth_ids_total = 0;
-    dedup::set_up_sec_id_tables(pool).await?;
     for entry in &tables {
         let (tr, oth) = dedup::process_sec_ids(entry, pool).await?;
         tr_ids_total += tr;
         oth_ids_total += oth;
     }
     info!("{} trial registry secondary ids extracted", tr_ids_total);
-    info!("{} other (sponsor) secondary ids extracted", oth_ids_total);
+    info!("{} other (sponsor / funder) secondary ids extracted", oth_ids_total);
 
     // Some of the 'registry ids' are in fact WHO UTN numbers.
     // Extract these into a separate table.
@@ -64,7 +64,9 @@ pub async fn identify_linked_studies(pool: &Pool<Postgres>) -> Result<(), AppErr
 
     // Extract the secondary ids that have the same source TR into separate table.
     // These refer to studies that are related rather than equivalences, though
-    // the nature of the relationshipo is unclear.
+    // the nature of the relationshipo is unclear. In some cases, (e.g. for CTG and the Dutch
+    // registry), same registry links maty refer to new sids being supplied within the
+    // registry for a single study 0 this needs further )
 
     let n = dedup::separate_same_registry_secids(pool).await?;
     info!("{} secondary ids from same registry separated out", n);
@@ -76,17 +78,22 @@ pub async fn identify_linked_studies(pool: &Pool<Postgres>) -> Result<(), AppErr
     // most preferred source <- less preferred source.
     // Once this is done the duplicates can be removed by selecting distinct records.
 
-    ftw::set_up_schema("mon.src", pool).await?;
-    dedup::assign_prefs_and_rearrange(pool).await?;
-    dedup::retain_distinct(pool).await?;
+
+    let (n1, n2) = dedup::assign_prefs_and_rearrange(pool).await?;
+    info!("{} secondary id links added alreadty in preferred order", n1);
+    info!("{} secondary id links reversed and added as in non-preferred order", n2);
+    let n = dedup::retain_distinct(pool).await?;
+    info!("{} distinct secondary id links retained, from {}", n, n1+n2);
+
     
     // In some cases the relationships between studies is 1:n rather than 1:1, 
-    // i.e. a study registered in one trial registry is equivalemt to 2 or more 
-    // studies in another registry. In these situations the '1' study can be 
-    // marked as a (partial) duplicate of the 'n' studies, and all the 1:n records should be 
-    // removed from the list of links - i.e. they should not be processed further.
-
-
+    // i.e. a study registered in one trial registry is equivalent to 2 or more 
+    // studies in another registry. In these situations the '1' study (but not the 'n') can
+    // be marked as a duplicate of the 'n' studies, and all the 1:n records should be 
+    // removed from the list of links inmto a separate table - i.e. they should not be 
+    // processed further. This shoud really be recorded as a separate type of 
+    // inter-study relationship, as it was in the crMDR.
+     
 
     // n:n links may also occur, though these are relatively rare. 
     // For further exploration.

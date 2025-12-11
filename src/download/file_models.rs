@@ -84,7 +84,7 @@ pub struct WHOLine
 #[derive(Debug, serde::Serialize)]
 pub struct WHORecord
 {
-    pub source_id: i32, 
+    pub sid_type_id: i32, 
     pub record_date: Option<String>,
     pub sd_sid: String, 
     pub pub_title: Option<String>,
@@ -151,24 +151,19 @@ pub struct SecondaryId
     pub source_field: String,
     pub sec_id: String,
     pub processed_id: String,
-    pub sec_id_source: usize,
     pub sec_id_type_id: usize,
-    pub sec_id_type: String,
 }
 
 #[allow(dead_code)]
 impl SecondaryId {
 
     pub fn new(source_field: String, sec_id: String, 
-        processed_id: String, sec_id_source: usize,
-        sec_id_type_id: usize, sec_id_type: String)
+        processed_id: String, sec_id_type_id: usize)
          -> Self {SecondaryId {  
                 source_field,
                 sec_id,
                 processed_id,
-                sec_id_source,
                 sec_id_type_id,
-                sec_id_type,
             }
     }
   
@@ -178,9 +173,7 @@ impl SecondaryId {
             source_field,
             sec_id,
             processed_id: sidbase.processed_id,
-            sec_id_source: sidbase.sec_id_source,
             sec_id_type_id: sidbase.sec_id_type_id,
-            sec_id_type: sidbase.sec_id_type,
          }
     }
 
@@ -189,9 +182,7 @@ impl SecondaryId {
             source_field: self.source_field.clone(),
             sec_id: self.sec_id.clone(),
             processed_id: self.processed_id.clone(),
-            sec_id_source: self.sec_id_source,
             sec_id_type_id: self.sec_id_type_id,
-            sec_id_type: self.sec_id_type.clone(),
         }
     }
     
@@ -202,21 +193,16 @@ impl SecondaryId {
 pub struct SecIdBase
 {
     pub processed_id: String,
-    pub sec_id_source: usize,
     pub sec_id_type_id: usize,
-    pub sec_id_type: String,
 } 
 
 #[allow(dead_code)]
 impl SecIdBase {
 
-    pub fn new(processed_id: String, sec_id_source: usize,
-        sec_id_type_id: usize , sec_id_type: String) -> Self {
+    pub fn new(processed_id: String, sec_id_type_id: usize) -> Self {
         SecIdBase {  
             processed_id,
-            sec_id_source,
             sec_id_type_id,
-            sec_id_type,
          }
     }
 } 
@@ -281,7 +267,7 @@ impl MeddraCondition {
 #[allow(dead_code)]
 pub struct WHOSummary
 {
-    pub source_id: i32, 
+    pub sid_type_id: i32, 
     pub sd_sid: String, 
     pub title: Option<String>,
 

@@ -5,83 +5,83 @@ use regex::Regex;
 use std::collections::HashSet;
 
 
-pub fn get_source_id(sd_sid: &String) -> i32 {
+pub fn get_sid_type_id(sd_sid: &String) -> i32 {
     let usid = sd_sid.to_uppercase();
     match usid {
-        _ if usid.starts_with("NCT") => 100120,
-        _ if usid.starts_with("CHICTR") => 100118,
-        _ if usid.starts_with("CTRI") => 100121,
-        _ if usid.starts_with("JPRN") =>  100127,
-        _ if usid.starts_with("EUCTR") => 100123,
-        _ if usid.starts_with("ISRCTN") => 100126,
-        _ if usid.starts_with("ACTRN") => 100116,
-        _ if usid.starts_with("DRKS") => 100124,
-        _ if usid.starts_with("IRCT") => 100125,
-        _ if usid.starts_with("KCT") =>  100119,
-        _ if usid.starts_with("NL") || sd_sid.starts_with("NTR") => 100132,
-        _ if usid.starts_with("CTIS") => 110428,
-        _ if usid.starts_with("RBR") => 100117, 
-        _ if usid.starts_with("RPCEC") => 100122,
-        _ if usid.starts_with("PACTR") => 100128,
-        _ if usid.starts_with("PER") =>  100129,
-        _ if usid.starts_with("SLCTR") => 100130,
-        _ if usid.starts_with("TCTR") => 100131,
-        _ if usid.starts_with("LBCTR") => 101989,
-        _ if usid.starts_with("ITMCTR") => 109108,
+        _ if usid.starts_with("NCT") => 120,
+        _ if usid.starts_with("CHICTR") => 118,
+        _ if usid.starts_with("CTRI") => 121,
+        _ if usid.starts_with("JPRN") => 127,
+        _ if usid.starts_with("EUCTR") => 123,
+        _ if usid.starts_with("ISRCTN") => 126,
+        _ if usid.starts_with("ACTRN") => 116,
+        _ if usid.starts_with("DRKS") => 124,
+        _ if usid.starts_with("IRCT") => 125,
+        _ if usid.starts_with("KCT") =>  119,
+        _ if usid.starts_with("NL-OMON") => 132,
+        _ if usid.starts_with("CTIS") => 135,
+        _ if usid.starts_with("RBR") => 117, 
+        _ if usid.starts_with("RPCEC") => 122,
+        _ if usid.starts_with("PACTR") => 128,
+        _ if usid.starts_with("PER") => 129,
+        _ if usid.starts_with("SLCTR") => 130,
+        _ if usid.starts_with("TCTR") => 131,
+        _ if usid.starts_with("LBCTR") => 133,
+        _ if usid.starts_with("ITMCTR") => 134,
         _ => 0
     }
 }
 
 
-pub fn get_db_name (source_id: i32) -> String {
-    let db_name = match source_id {
-        100120 => "ctg",
-        100116 => "anzctr",
-        100117 => "rebec",
-        100118 => "chictr",
-        100119 => "cris",
-        100121 => "ctri",
-        100122 => "rpcec",
-        100123 => "euctr",
-        100124 => "drks",
-        100125 => "irct",
-        100126 => "isrctn",
-        100127 => "jprn",
-        100128 => "pactr",
-        100129 => "rpuec",
-        100130 => "slctr",
-        100131 => "thctr",
-        100132 => "nntr",
-        110428 => "ctis",
-        101989 => "lebctr",
-        109108 => "itmctr",
+pub fn get_db_name (sid_type_id: i32) -> String {
+    let db_name = match sid_type_id {
+        120 => "ctg",
+        116 => "anzctr",
+        117 => "rebec",
+        118 => "chictr",
+        119 => "cris",
+        121 => "ctri",
+        122 => "rpcec",
+        123 => "euctr",
+        124 => "drks",
+        125 => "irct",
+        126 => "isrctn",
+        127 => "jprn",
+        128 => "pactr",
+        129 => "rpuec",
+        130 => "slctr",
+        131 => "thctr",
+        132 => "nntr",
+        135 => "ctis",
+        133 => "lebctr",
+        134 => "itmctr",
         _ => ""
     };
     db_name.to_string()
 }
 
 
-pub fn split_by_year (source_id: i32) -> bool {
+pub fn split_by_year (sid_type_id: i32) -> bool {
     
-    match source_id {
-        100116 => true,
-        100117 => false,
-        100118 => true,
-        100119 => false,
-        100121 => true,
-        100122 => false,
-        100123 => true,
-        100124 => true,
-        100125 => true,
-        100127 => true,
-        100128 => false,
-        100129 => false,
-        100130 => false,
-        100131 => false,
-        100132 => true,
-        110428 => true,
-        101989 => false,
-        109108 => false,
+    match sid_type_id {
+        116 => true,
+        117 => false,
+        118 => true,
+        119 => false,
+        121 => true,
+        122 => false,
+        123 => true,
+        124 => true,
+        125 => true,
+        127 => true,
+        128 => false,
+        129 => false,
+        130 => false,
+        131 => false,
+        132 => true,
+        135 => true,
+        133 => false,
+        134 => false,
         _ => false
     }
 
@@ -144,7 +144,7 @@ pub fn get_type(study_type: &String) -> i32 {
 }
 
 
-pub fn get_status(status: &String, source_id: i32) -> i32 {
+pub fn get_status(status: &String, sid_type_id: i32) -> i32 {
 
     // to clarify, need to check exact meaning of terms as used by CGT and EMA in particuolar
     // to distinguish whether terms apply to recruitment or to the study as a whole
@@ -155,7 +155,7 @@ pub fn get_status(status: &String, source_id: i32) -> i32 {
     // For EUDRACXT and CTIS ???
   
     let s = status.to_lowercase();
-    if (s == "completed" && (source_id == 100120 || source_id == 100116)) 
+    if (s == "completed" && (sid_type_id == 120 || sid_type_id == 116)) 
         || s == "complete: follow-up complete" || s == "complete: follow up complete" 
         || s == "data analysis completed" || s == "main results already published"
         || s == "approved for marketing"
@@ -217,10 +217,9 @@ pub fn get_status(status: &String, source_id: i32) -> i32 {
         99   // Other
     }
 }
-
          
 
-pub fn get_conditions(condition_list: &String, source_id: i32) -> (Option<Vec<String>>, Option<Vec<MeddraCondition>>) {
+pub fn get_conditions(condition_list: &String, sid_type_id: i32) -> (Option<Vec<String>>, Option<Vec<MeddraCondition>>) {
 
     // Replace line breaks and hashes with semi-colons, then split
 
@@ -241,8 +240,8 @@ pub fn get_conditions(condition_list: &String, source_id: i32) -> (Option<Vec<St
         {
             // For EMA data check for a structured MedDRA entry
 
-            if (source_id == 100123 || source_id == 110428) && s1.to_lowercase().starts_with("meddra") {
-                
+            if sid_type_id == 123 || sid_type_id == 135 {
+
                 // Of type (but without line breaks): 
                 // MedDRA version: 20.0  // Level: PT  // Classification code 10005003  // Term: Bladder cancer
                 // System Organ Class: 10029104 - Neoplasms benign, malignant and unspecified (incl cysts and polyps)",
@@ -349,7 +348,7 @@ pub fn get_conditions(condition_list: &String, source_id: i32) -> (Option<Vec<St
 }
 
 
-pub fn split_and_dedup_countries(source_id: i32, country_list: &String) -> Option<Vec<String>> {
+pub fn split_and_dedup_countries(sid_type_id: i32, country_list: &String) -> Option<Vec<String>> {
 
     // country list known to be non-null and already 'tidied'.
 
@@ -364,7 +363,7 @@ pub fn split_and_dedup_countries(source_id: i32, country_list: &String) -> Optio
         let mut this_c = c.trim().to_lowercase().replace(".", "");
         let mut this_c_consumed = false;
 
-        if source_id == 100127 {// Some odd 'regional' countries used by the Japanese registries
+        if sid_type_id == 127 {// Some odd 'regional' countries used by the Japanese registries
             this_c = this_c.replace("asia except japan", "asia");
             this_c = this_c.replace("asia exept japan", "asia");
             this_c = this_c.replace("japan,asia(except japan)", "asia");
@@ -875,8 +874,8 @@ pub fn split_secids (ids: &Option<Vec<SecondaryId>>) -> (Option<Vec<String>>, Op
         Some(sids) => {
             if sids.len() > 0 {
                 for secid in sids {
-                   if secid.sec_id_type_id == 11 {
-                       reg_ids.push(format!("{}::{}", secid.sec_id_source, secid.processed_id))
+                   if secid.sec_id_type_id < 990 {
+                       reg_ids.push(format!("{}::{}", secid.sec_id_type_id, secid.processed_id))
                    }
                    else {
                        oth_ids.push(secid.sec_id.clone())
@@ -993,7 +992,7 @@ pub fn  split_ids(sd_sid: &String, in_string: &String, source_field: &str) -> Ve
                 // Is the id the same as the sid? (With EUCTR may be, 
                 // because it is simply anoher country code variation)
 
-                if sec_id_base.processed_id != sd_sid.to_string()
+                if sec_id_base.processed_id != sd_sid.to_string() && sec_id_base.sec_id_type_id != 0
                 {
                     id_list.push(SecondaryId::new_from_base(source_field.to_string(), 
                                                 secid.to_string(), sec_id_base));
@@ -1050,41 +1049,36 @@ pub fn get_sec_id_details(sec_id: &str) -> SecIdBase {
         if sid.is_none() {    // still...
             
             let upid = sec_id.to_uppercase();
-            let sec_id_source = match upid {
-            _ if upid.starts_with("CHICTR") => 100118,
-            _ if upid.starts_with("IRCT") => 100125,
-            _ if upid.starts_with("KCT") =>  100119,
-            _ if upid.starts_with("CTIS") => 110428,
-            _ if upid.starts_with("RBR") => 100117, 
-            _ if upid.starts_with("RPCEC") => 100122,
-            _ if upid.starts_with("PACTR") => 100128,
-            _ if upid.starts_with("SLCTR") => 100130,
-            _ if upid.starts_with("TCTR") => 100131,
-            _ if upid.starts_with("LBCTR") => 101989,
-            _ if upid.starts_with("ITMCTR") => 109108,
-            _ if upid.starts_with("CHIMCTR") => 104545,
+            let sec_id_type_id = match upid {
+            _ if upid.starts_with("CHICTR") => 118,
+            _ if upid.starts_with("IRCT") => 125,
+            _ if upid.starts_with("KCT") =>  119,
+            _ if upid.starts_with("RBR") => 117, 
+            _ if upid.starts_with("RPCEC") => 122,
+            _ if upid.starts_with("PACTR") => 128,
+            _ if upid.starts_with("SLCTR") => 130,
+            _ if upid.starts_with("TCTR") => 131,
+            _ if upid.starts_with("LBCTR") => 133,
+            _ if upid.starts_with("ITMCTR") => 134,
+            _ if upid.starts_with("CHIMCTR") => 134,
             _ => 0
             };
 
-            if sec_id_source > 0 {
+            if sec_id_type_id > 0 {
                 sid = Some(SecIdBase{
                     processed_id: sec_id.to_string(),
-                    sec_id_source: sec_id_source, 
-                    sec_id_type_id: 11,
-                    sec_id_type: "Trial Registry ID".to_string(),
+                    sec_id_type_id: sec_id_type_id,
                 })
             }
         }
               
         if sid.is_none() {
             
-            // Return the original secondary id without any source.
+            // Return the original secondary id without any identified type.
 
             sid = Some(SecIdBase{
                 processed_id: sec_id.to_string(),
-                sec_id_source: 0, 
-                sec_id_type_id: 0,
-                sec_id_type: "?".to_string(),
+                sec_id_type_id: 990,
             })
         }
         
@@ -1106,14 +1100,15 @@ fn contains_nct(hay: &str) -> Option<SecIdBase> {
             if id == "NCT11111111" || id == "NCT99999999" 
             || id == "NCT12345678" || id == "NCT87654321" 
             || id == "NCT00000000" {
-                None
+                Some(SecIdBase{
+                    processed_id: "0".to_string(),
+                    sec_id_type_id: 0,
+                })
             }
             else {
                 Some(SecIdBase{
                     processed_id: id.to_string(),
-                    sec_id_source: 100120, 
-                    sec_id_type_id: 11,
-                    sec_id_type: "Trial Registry ID".to_string(),
+                    sec_id_type_id: 120,
                 })
             }
         },
@@ -1136,9 +1131,7 @@ fn contains_euctr(hay: &str) -> Option<SecIdBase> {
                     let processed_id = format!("CTIS{}", &id[0..14]);
                     Some(SecIdBase{
                         processed_id: processed_id.to_string(),
-                        sec_id_source: 110428, 
-                        sec_id_type_id: 11,
-                        sec_id_type: "Trial Registry ID".to_string(),
+                        sec_id_type_id: 135,
                     })
                 },
                 None => {   // assumed EUCTR
@@ -1146,9 +1139,7 @@ fn contains_euctr(hay: &str) -> Option<SecIdBase> {
                     let processed_id = format!("EUCTR{}", &id[0..14]);
                     Some(SecIdBase{
                         processed_id: processed_id.to_string(),
-                        sec_id_source: 100123, 
-                        sec_id_type_id: 11,
-                        sec_id_type: "Trial Registry ID".to_string(),
+                        sec_id_type_id: 123,
                     })
                 },
             }
@@ -1168,14 +1159,15 @@ fn contains_isrctn(hay: &str) -> Option<SecIdBase> {
             Some(s) => {
                 let id = &s[0];
                 if id == "ISRCTN00000000" {
-                    None
+                    Some(SecIdBase{
+                        processed_id: "0".to_string(),
+                        sec_id_type_id: 0,
+                    })
                 }
                 else {
                     Some(SecIdBase{
                         processed_id: id.to_string(),
-                        sec_id_source: 100126, 
-                        sec_id_type_id: 11,
-                        sec_id_type: "Trial Registry ID".to_string(),
+                        sec_id_type_id: 126,
                     })
                 }
             },
@@ -1195,9 +1187,7 @@ fn contains_actrn(hay: &str) -> Option<SecIdBase> {
                 let id = &s[0];
                 Some(SecIdBase{
                     processed_id: id.to_string(),
-                    sec_id_source: 100116, 
-                    sec_id_type_id: 11,
-                    sec_id_type: "Trial Registry ID".to_string(),
+                    sec_id_type_id: 116,
                 })
             },
             None => None,
@@ -1216,9 +1206,7 @@ fn contains_drks(hay: &str) -> Option<SecIdBase> {
                 let id = &s[0];
                 Some(SecIdBase{
                     processed_id: id.to_string(),
-                    sec_id_source: 100124, 
-                    sec_id_type_id: 11,
-                    sec_id_type: "Trial Registry ID".to_string(),
+                    sec_id_type_id: 124,
                 })
             },
             None => None,
@@ -1238,9 +1226,7 @@ fn contains_ctri(hay: &str) -> Option<SecIdBase> {
                 let processed_id = id.replace("/", "-");  // internal representation for CTRI
                 Some(SecIdBase{
                     processed_id: processed_id,
-                    sec_id_source: 100121, 
-                    sec_id_type_id: 11,
-                    sec_id_type: "Trial Registry ID".to_string(),
+                    sec_id_type_id: 121,
                 })
             },
             None => None,
@@ -1259,9 +1245,7 @@ fn contains_who(hay: &str) -> Option<SecIdBase> {
             let processed_id = format!("U{}", id);  // internal representation for CTRI
             Some(SecIdBase{
                 processed_id: processed_id,
-                sec_id_source: 100115, 
-                sec_id_type_id: 11,
-                sec_id_type: "Trial Registry ID".to_string(),
+                sec_id_type_id: 115,
             })
         },
         None => None,
@@ -1280,9 +1264,7 @@ fn contains_umin(hay: &str) -> Option<SecIdBase> {
                     let processed_id = format!("JPRN-UMIN{}", id);  
                     Some(SecIdBase{
                         processed_id: processed_id,
-                        sec_id_source: 100127, 
-                        sec_id_type_id: 11,
-                        sec_id_type: "Trial Registry ID".to_string(),
+                        sec_id_type_id: 141,
                     })
                 },
                 None => None,
@@ -1304,12 +1286,10 @@ fn contains_jcrt(hay: &str) -> Option<SecIdBase> {
         match RE_JRCT1.captures(hay) {
             Some(s1) => {
                 let id = &s1[0];
-                let processed_id = format!("JPRN-{}", id);  // internal representation for CTRI
+                let processed_id = format!("JPRN-{}", id);  
                 Some(SecIdBase{
                     processed_id: processed_id,
-                    sec_id_source: 100127, 
-                    sec_id_type_id: 11,
-                    sec_id_type: "Trial Registry ID".to_string(),
+                    sec_id_type_id: 140,
                 })
             },
 
@@ -1317,12 +1297,10 @@ fn contains_jcrt(hay: &str) -> Option<SecIdBase> {
                 match RE_JRCT2.captures(hay) {
                     Some(s2) => {
                         let id = &s2[0];
-                        let processed_id = format!("JPRN-{}", id);  // internal representation for CTRI
+                        let processed_id = format!("JPRN-{}", id); 
                         Some(SecIdBase{
                             processed_id: processed_id,
-                            sec_id_source: 100127, 
-                            sec_id_type_id: 11,
-                            sec_id_type: "Trial Registry ID".to_string(),
+                            sec_id_type_id: 140,
                         })
                     },
                     None => None,
@@ -1342,12 +1320,10 @@ fn contains_jprn(hay: &str) -> Option<SecIdBase> {
             match RE_JPRN.captures(hay) {
                 Some(s) => {
                     let id = &s[0];
-                    let processed_id = format!("JPRN-UMIN{}", id);  // internal representation for CTRI
+                    let processed_id = format!("JPRN-UMIN{}", id);  
                     Some(SecIdBase{
                         processed_id: processed_id,
-                        sec_id_source: 100127, 
-                        sec_id_type_id: 11,
-                        sec_id_type: "Trial Registry ID".to_string(),
+                        sec_id_type_id: 141,
                     })
                 },
                 None => None,
@@ -1356,9 +1332,7 @@ fn contains_jprn(hay: &str) -> Option<SecIdBase> {
         else {
             Some(SecIdBase{
                 processed_id: hay.to_string(),
-                sec_id_source: 100127, 
-                sec_id_type_id: 11,
-                sec_id_type: "Trial Registry ID".to_string(),
+                sec_id_type_id: 127,
             })
         }
     }
@@ -1367,20 +1341,32 @@ fn contains_jprn(hay: &str) -> Option<SecIdBase> {
     }
 }
 
+
 fn contains_nl(hay: &str) -> Option<SecIdBase> {
     if hay.starts_with("NL") {
+        static RE_OMON: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^NL-OMON\d{5}$").unwrap());
         static RE_NL: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^NL\d{1,4}$").unwrap());
-        match RE_NL.captures(hay) {
+        match RE_OMON.captures(hay) {
             Some(s) => {
                 let id = &s[0];
                 Some(SecIdBase{
                     processed_id: id.to_string(),
-                    sec_id_source: 100132, 
-                    sec_id_type_id: 11,
-                    sec_id_type: "Trial Registry ID".to_string(),
+                    sec_id_type_id: 132,
                 })
             },
-            None => None,
+
+            None => {
+                match RE_NL.captures(hay) {
+                Some(s) => {
+                    let id = &s[0];
+                    Some(SecIdBase{
+                        processed_id: id.to_string(),
+                        sec_id_type_id: 182,
+                        })
+                    },
+                    None => None, 
+                }
+            }
         }
     }
     else {
@@ -1396,9 +1382,7 @@ fn contains_ntr(hay: &str) -> Option<SecIdBase> {
                 let id = &s[0];
                 Some(SecIdBase{
                     processed_id: id.to_string(),
-                    sec_id_source: 100132, 
-                    sec_id_type_id: 45,
-                    sec_id_type: "Obsolete NTR number".to_string(),
+                    sec_id_type_id: 181,
                 })
             },
             None => None,
@@ -1417,9 +1401,7 @@ fn contains_rpuec(hay: &str) -> Option<SecIdBase> {
                 let id = hay;
                 Some(SecIdBase{
                     processed_id: id.to_string(),
-                    sec_id_source: 100129, 
-                    sec_id_type_id: 11,
-                    sec_id_type: "Trial Registry ID".to_string(),
+                    sec_id_type_id: 129,
                 })
             },
             None => None,
@@ -1429,52 +1411,3 @@ fn contains_rpuec(hay: &str) -> Option<SecIdBase> {
         None
     }
 }
-
-/* 
-
-// transfer these to later processing - priority here is other registry ids
-
-fn contains_anvisa(hay: &str) -> Option<SecIdBase> {
-    if hay.starts_with("RBR") {
-        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[0-9]{8}.[0-9].[0-9]{4}.[0-9]{4}").unwrap());
-        match RE.captures(hay) {
-            Some(s) => {
-                let id = &s[0];
-                Some(SecIdBase{
-                    processed_id: id.to_string(),
-                    sec_id_source: 102000,  // Brazilian regulatory authority, ANVISA
-                    sec_id_type_id: 41,
-                    sec_id_type: "Regulatory Body ID".to_string(),
-                })},
-            None => None,
-        } 
-    }
-    else {
-        None
-    }
-}
-
-fn contains_brethics(hay: &str) -> Option<SecIdBase> {
-    if hay.starts_with("RBR") {
-        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[0-9].[0-9]{3}.[0-9]{3}").unwrap());
-        match RE.captures(hay) {
-            Some(s) => {
-                let id = &s[0];
-                Some(SecIdBase{
-                    processed_id: id.to_string(),
-                    sec_id_source: 102001,  // Brazilian ethics committee approval number
-                    sec_id_type_id: 12,
-                    sec_id_type: "Ethics Review ID".to_string(),
-                })},
-            None => None,
-        }
-    }
-    else {
-        None
-    }
-}
-*/
-
-
-
-

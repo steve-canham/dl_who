@@ -5,7 +5,6 @@ use std::collections::HashMap;
 use crate::{err::AppError, DownloadResult};
 use crate:: download::file_models::{WHOSummary};
 
-
 pub async fn get_next_download_id(pool: &Pool<Postgres>) -> Result<i32, AppError>{
 
     let sql = "select max(id) from evs.dl_events ";
@@ -101,7 +100,7 @@ pub async fn store_who_summary(rec: WHOSummary, full_path: PathBuf, pool: &Pool<
         // Update with new details.
         
         sql = "Update dat.".to_string() + &rec.table_name + 
-                        r#" SET source_id = $1, title = $3, 
+                        r#" SET sid_type_id = $1, title = $3, 
                         study_type = $4, study_type_id = $5, study_status = $6, study_status_id = $7, 
                         sponsor_name = $8, sponsor_processed = $9,
                         reg_sec_ids = $10, oth_sec_ids = $11, 
@@ -114,7 +113,7 @@ pub async fn store_who_summary(rec: WHOSummary, full_path: PathBuf, pool: &Pool<
             
         // Create as a new record.
 
-        sql = "Insert into dat.".to_string() + &rec.table_name + r#"(source_id, sd_sid, title, 
+        sql = "Insert into dat.".to_string() + &rec.table_name + r#"(sid_type_id, sd_sid, title, 
                     study_type, study_type_id, study_status, study_status_id, 
                     sponsor_name, sponsor_processed, 
                     reg_sec_ids, oth_sec_ids, reg_year, enrol_year, results_yes_no, 
@@ -126,7 +125,7 @@ pub async fn store_who_summary(rec: WHOSummary, full_path: PathBuf, pool: &Pool<
     }
 
     sqlx::query(&sql)
-    .bind(rec.source_id).bind(rec.sd_sid).bind(rec.title)
+    .bind(rec.sid_type_id).bind(rec.sd_sid).bind(rec.title)
     .bind(rec.study_type).bind(rec.study_type_id).bind(rec.study_status).bind(rec.study_status_id)
     .bind(rec.sponsor_name).bind(rec.sponsor_processed)
     .bind(rec.reg_sec_ids).bind(rec.oth_sec_ids)

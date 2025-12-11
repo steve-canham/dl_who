@@ -53,7 +53,7 @@ impl OutputRecs{
 
     pub async fn store_data(&self, pool : &Pool<Postgres>) -> Result<PgQueryResult, AppError> {
     
-        let sql = r#"INSERT INTO sec.new_recs (pri_source, pri_sid, sec_source, sec_sid) 
+        let sql = r#"INSERT INTO sec.new_recs (pri_sid_type, pri_sid, sec_sid_type, sec_sid)
             SELECT * FROM UNNEST($1::int[], $2::text[], $3::int[], $4::text[])"#;
 
         sqlx::query(sql)

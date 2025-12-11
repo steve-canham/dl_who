@@ -4,7 +4,7 @@ use log::error;
 use chrono::NaiveDate;
 use std::collections::HashSet;
 
-use super::who_helper::{get_db_name, get_source_id, get_type, get_status, 
+use super::who_helper::{get_db_name, get_sid_type_id, get_type, get_status, 
     get_conditions, split_and_dedup_countries, add_study_purpose,
     add_int_study_features, add_obs_study_features, add_eu_design_features,
     add_masking, add_phase, add_eu_phase, split_ids, split_secids, process_sponsor_name};
@@ -23,14 +23,14 @@ pub fn summarise_line(w: &WHOLine, dl_id: i32, line_number: i32) -> Option<WHOSu
         return None;
     }
 
-    let source_id = get_source_id(&sd_sid);
-    if source_id == 0
+    let sid_type_id = get_sid_type_id(&sd_sid);
+    if sid_type_id == 0
     {
         error!("Well that's weird - can't match the study id's {} source on line {}!", sd_sid, line_number);
         return None;
     }
 
-    if source_id == 100123 {
+    if sid_type_id == 123 {
         sd_sid = sd_sid[0..19].to_string(); // lose country specific suffix
     }
    
@@ -55,7 +55,7 @@ pub fn summarise_line(w: &WHOLine, dl_id: i32, line_number: i32) -> Option<WHOSu
                 30   // study completed
             }
             else {
-                get_status(&s, source_id)
+                get_status(&s, sid_type_id)
             }
          },
          None => 0
@@ -113,7 +113,6 @@ pub fn summarise_line(w: &WHOLine, dl_id: i32, line_number: i32) -> Option<WHOSu
     // Finally split the ids into two types - either trial registry Id or others;
     // and construct string vector from each
     
-
     let reg_ids: Option<Vec::<String>>;
     let oth_ids: Option<Vec::<String>>;
     (reg_ids, oth_ids) = split_secids(&secids);
@@ -130,10 +129,10 @@ pub fn summarise_line(w: &WHOLine, dl_id: i32, line_number: i32) -> Option<WHOSu
     (enrol_year, _, _) = split_iso_date(&date_enrolment);
 
     
-    let mut table_name = get_db_name(source_id);
+    let mut table_name = get_db_name(sid_type_id);
     let mut suffix: &str;
 
-    if source_id == 100120 {
+    if sid_type_id == 120 {
         if reg_year < 2010 {
             suffix = "_lt_2010";
         }
@@ -152,8 +151,8 @@ pub fn summarise_line(w: &WHOLine, dl_id: i32, line_number: i32) -> Option<WHOSu
         table_name = table_name + suffix;
     }
 
-    if source_id == 100118 || source_id == 100121 
-        || source_id == 100127 {
+    if sid_type_id == 118 || sid_type_id == 121 
+        || sid_type_id == 127 {
         if reg_year < 2020 {
             suffix = "_lt_2020";
         }
@@ -166,12 +165,12 @@ pub fn summarise_line(w: &WHOLine, dl_id: i32, line_number: i32) -> Option<WHOSu
 
     let country_list = w.countries.tidy();
     let countries = match country_list {
-        Some(c) => {split_and_dedup_countries(source_id, &c)}
+        Some(c) => {split_and_dedup_countries(sid_type_id, &c)}
         None => None,
     };
 
     Some(WHOSummary {
-        source_id: source_id, 
+        sid_type_id: sid_type_id, 
         sd_sid: sd_sid, 
         title: title,
         remote_url: w.url.tidy(),
@@ -197,7 +196,7 @@ pub fn summarise_line(w: &WHOLine, dl_id: i32, line_number: i32) -> Option<WHOSu
 
 pub fn process_line(w: WHOLine, summ: &WHOSummary) -> Option<WHORecord>  {
 
-    let source_id = summ.source_id;
+    let sid_type_id = summ.sid_type_id;
     let study_type_id = summ.study_type_id;
 
     let design_orig = w.study_design.tidy();
@@ -206,7 +205,7 @@ pub fn process_line(w: WHOLine, summ: &WHOSummary) -> Option<WHORecord>  {
     let condition_list = w.conditions.replace_unicodes();
     let (conditions, meddraconds) = match condition_list  {
         Some(cl) => {
-            get_conditions(&cl, source_id)
+            get_conditions(&cl, sid_type_id)
         }, 
         None => {
             (None, None)
@@ -219,7 +218,7 @@ pub fn process_line(w: WHOLine, summ: &WHOSummary) -> Option<WHORecord>  {
     if let Some(dl) = w.phase.tidy() {
 
         let phase_statement = &dl.to_lowercase();
-        if source_id == 100123 || source_id == 110428 {
+        if sid_type_id == 123 || sid_type_id == 135 {
             if let Some(sf) = add_eu_phase(phase_statement)
             {
                 features.push(sf);
@@ -236,7 +235,7 @@ pub fn process_line(w: WHOLine, summ: &WHOSummary) -> Option<WHORecord>  {
     if let Some(dl) =  w.study_design.tidy() {
     
         let des_list = &dl.to_lowercase();
-        if source_id == 100123 || source_id == 110428 {
+        if sid_type_id == 123 || sid_type_id == 135 {
                 let mut sfs = add_eu_design_features(des_list);
                 features.append(&mut sfs);
         }
@@ -277,7 +276,7 @@ pub fn process_line(w: WHOLine, summ: &WHOSummary) -> Option<WHORecord>  {
     let mut agemax_units: Option<String> = None;
 
 
-    if source_id != 100123 {
+    if sid_type_id != 123 {
 
         static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\d+").unwrap());
 
@@ -363,7 +362,7 @@ pub fn process_line(w: WHOLine, summ: &WHOSummary) -> Option<WHORecord>  {
             }
 
             let mut crit = s.clone();
-            if source_id == 100123  {
+            if sid_type_id == 123  {
                if let Some(pos) = s.find("Are the trial subjects under 18?")
                {
                     (agemin, agemin_units, agemax, agemax_units) = get_euro_ages(&s[pos..].to_string());
@@ -421,7 +420,7 @@ pub fn process_line(w: WHOLine, summ: &WHOSummary) -> Option<WHORecord>  {
      };
     
     Some(WHORecord  {
-        source_id: source_id, 
+        sid_type_id: sid_type_id, 
         record_date: w.last_updated.as_iso_date(),
         sd_sid: summ.sd_sid.clone(), 
         pub_title: w.pub_title.replace_unicodes(),
@@ -484,8 +483,6 @@ pub fn process_line(w: WHOLine, summ: &WHOSummary) -> Option<WHORecord>  {
         meddra_condition_list: meddraconds,
     })
 }
-
-
 
 
 fn get_naive_date (dt: &String) -> Option<NaiveDate> {

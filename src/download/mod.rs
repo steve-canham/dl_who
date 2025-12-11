@@ -58,7 +58,7 @@ pub async fn process_single_file(file_path: &PathBuf, json_path: &PathBuf, dl_id
         };
 
         let mut file_path = PathBuf::from("");     
-        if rec_summ.source_id != 100120  && rec_summ.source_id != 100126 {   // file production not necessary for these sources
+        if rec_summ.sid_type_id != 120  && rec_summ.sid_type_id != 126 {   // file production not necessary for these sources
             
             // Process the whole line to get a full WHO record for storage.
 
@@ -80,8 +80,8 @@ pub async fn process_single_file(file_path: &PathBuf, json_path: &PathBuf, dl_id
 
         // Adjust running source totals.
 
-        let source_id = rec_summ.source_id;
-        source_tots.entry(source_id).and_modify(|n| *n += 1).or_insert(1);
+        let sid_type_id = rec_summ.sid_type_id;
+        source_tots.entry(sid_type_id).and_modify(|n| *n += 1).or_insert(1);
 
         // Store the WHO summary record in the database (whether a file was produced or not).
 
@@ -121,10 +121,10 @@ fn folder_exists(folder_name: &PathBuf) -> bool {
 
 fn get_file_path(json_path: &PathBuf, rec_summ: &WHOSummary) -> Result<PathBuf, AppError> {
 
-    let source_id = rec_summ.source_id;
-    let mut db_part = get_db_name(source_id);  
+    let sid_type_id = rec_summ.sid_type_id;
+    let mut db_part = get_db_name(sid_type_id);  
 
-    if split_by_year(source_id)
+    if split_by_year(sid_type_id)
     {
         // Folders should be split by year of registration
         // Applies to EUCTR and CTIS, and the Indian, Chinese, Japanese,

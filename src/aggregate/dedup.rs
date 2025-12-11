@@ -12,36 +12,39 @@ async fn execute_sql(sql: &str, pool: &Pool<Postgres>) -> Result<u64, AppError> 
     Ok(res.rows_affected())
 }
 
+async fn get_table_record_count(table_name: &str, pool: &Pool<Postgres>) -> Result<i64, AppError> {
 
-pub async fn set_up_sec_id_tables (pool: &Pool<Postgres>) -> Result<(), AppError> {
+    let sql = format!(r"select count(*) from {}", table_name);
+      
+    sqlx::query_scalar(&sql).fetch_one(pool)
+            .await.map_err(|e| AppError::SqlxError(e, sql.to_string()))
+}
+
+
+
+pub async fn set_up_init_sec_id_tables (pool: &Pool<Postgres>) -> Result<u64, AppError> {
 
     let sql = r#"SET client_min_messages TO WARNING;
-                    create schema if not exists sec;"#;
-    execute_sql(sql, pool).await?;
-
-    let sql = r#"SET client_min_messages TO WARNING;
-        drop table if exists sec.temp_tr_sec_ids;
-        create table sec.temp_tr_sec_ids (
-          pri_source     int4
+    create schema if not exists sec;
+    
+    drop table if exists sec.initial_tr_sec_ids;
+        create table sec.initial_tr_sec_ids (
+          pri_sid_type   int4
         , pri_sid        varchar 
-        , sec_source     int4
+        , sec_sid_type   int4
         , sec_sid        varchar
-    );"#;
-    execute_sql(sql, pool).await?;
+    );
 
-    let sql = r#"SET client_min_messages TO WARNING;
-        drop table if exists sec.temp_oth_sec_ids;
-        create table sec.temp_oth_sec_ids (
-          pri_source     int4
+    drop table if exists sec.other_sec_ids;
+        create table sec.other_sec_ids (
+          pri_sid_type   int4
         , pri_sid        varchar 
         , sponsor        varchar
         , sec_id         varchar
     );"#;
-    execute_sql(sql, pool).await?;
 
-    Ok(())
+    execute_sql(sql, pool).await
 }
-
 
 
 pub async fn process_sec_ids(entry: &BasTable, pool: &Pool<Postgres>) -> Result<(u64, u64), AppError> {
@@ -49,17 +52,21 @@ pub async fn process_sec_ids(entry: &BasTable, pool: &Pool<Postgres>) -> Result<
     let _ = entry.source_id;
     let _ = entry.source_name; // to avoid warnings for now
 
-    let sql = format!(r#"insert into sec.temp_tr_sec_ids (pri_source, pri_sid, sec_source, sec_sid)
-        select source_id, sd_sid, SPLIT_PART(unnest(reg_sec_ids), '::', 1)::int4, SPLIT_PART(unnest(reg_sec_ids), '::', 2)
-        from dat.{}
+    let sql = format!(r#"insert into sec.initial_tr_sec_ids (pri_sid_type, pri_sid, sec_sid_type, sec_sid)
+        select p.sid_type_id, sd_sid, SPLIT_PART(unnest(reg_sec_ids), '::', 1)::int4, SPLIT_PART(unnest(reg_sec_ids), '::', 2)
+        from dat.{} d
+        inner join mon_src.parameters p
+        on d.source_id = p.id
         where reg_sec_ids is not null
         order by sd_sid;"#, entry.table_name);
 
     let tr = execute_sql(&sql, pool).await?;
         
-    let sql = format!(r#"insert into sec.temp_oth_sec_ids (pri_source, pri_sid, sponsor, sec_id)
-        select source_id, sd_sid, sponsor_processed, unnest(oth_sec_ids) 
-        from dat.{}
+    let sql = format!(r#"insert into sec.other_sec_ids (pri_sid_type, pri_sid, sponsor, sec_id)
+        select p.sid_type_id, sd_sid, sponsor_processed, unnest(oth_sec_ids) 
+        from dat.{} d
+        inner join mon_src.parameters p
+        on d.source_id = p.id
         where oth_sec_ids is not null
         order by sd_sid;"#, entry.table_name);
 
@@ -68,42 +75,22 @@ pub async fn process_sec_ids(entry: &BasTable, pool: &Pool<Postgres>) -> Result<
     Ok((tr, oth))
 }
 
-
-// Extract the secondary ids that have the same source TR into separate table
-
-pub async fn separate_same_registry_secids(pool: &Pool<Postgres>) -> Result<u64, AppError> {
-    
-   let sql = format!(r#"drop table if exists sec.same_tr_sec_ids;
-        create table sec.same_tr_sec_ids as 
-        select * from sec.temp_tr_sec_ids
-        where pri_source = sec_source
-        order by pri_sid;"#);
-    
-    execute_sql(&sql, pool).await?;
-
-    let sql = format!(r#"delete from sec.temp_tr_sec_ids
-        where pri_source = sec_source"#);
-
-    let n = execute_sql(&sql, pool).await?;
-
-    Ok(n)
-}
     
 
 // Extract the secondary ids that are WHO U numbers into separate table
     
 pub async fn separate_who_utn_secids(pool: &Pool<Postgres>) -> Result<u64, AppError> {
 
-    let sql = format!(r#"drop table if exists sec.who_tr_sec_ids;
-        create table sec.who_tr_sec_ids as 
-        select * from sec.temp_tr_sec_ids
-        where sec_source = 100115
+    let sql = format!(r#"drop table if exists sec.who_sec_ids;
+        create table sec.who_sec_ids as 
+        select * from sec.initial_tr_sec_ids
+        where sec_sid_type = 115
         order by pri_sid;"#);
     
     execute_sql(&sql, pool).await?;
 
-    let sql = format!(r#"delete from sec.temp_tr_sec_ids
-        where sec_source = 100115"#);
+    let sql = format!(r#"delete from sec.initial_tr_sec_ids
+        where sec_sid_type = 115"#);
 
     let n = execute_sql(&sql, pool).await?;
 
@@ -115,15 +102,15 @@ pub async fn separate_who_utn_secids(pool: &Pool<Postgres>) -> Result<u64, AppEr
 // (as, very probably, are some of the pairs)
 
 
-
 pub async fn setup_utn_processing(pool: &Pool<Postgres>) -> Result<Vec<LinkedRec>, AppError> {
 
-    let sql = r#"drop table if exists sec.new_recs;
+    let sql = r#"SET client_min_messages TO WARNING;
+        drop table if exists sec.new_recs;
         create table sec.new_recs (
-            pri_source  int4,
-            pri_sid     varchar,
-            sec_source  int4,
-            sec_sid     varchar
+            pri_sid_type  int4,
+            pri_sid       varchar,
+            sec_sid_type  int4,
+            sec_sid       varchar
         );
         
         drop table if exists sec.temp_mult_utn;
@@ -143,7 +130,7 @@ pub async fn setup_utn_processing(pool: &Pool<Postgres>) -> Result<Vec<LinkedRec
     
     let sql = r#"insert into sec.temp_mult_utn(sec_sid, count)
         select sec_sid, count(pri_sid)
-        from sec.who_tr_sec_ids
+        from sec.who_sec_ids
         group by sec_sid
         having count(pri_sid) > 1 and count(pri_sid) < 6
         order by count(pri_sid) desc, sec_sid;"#;
@@ -151,9 +138,9 @@ pub async fn setup_utn_processing(pool: &Pool<Postgres>) -> Result<Vec<LinkedRec
     execute_sql(&sql, pool).await?;
 
     let sql = r#"insert into sec.temp_mult_utn_dets(sec_sid, count, array_agg)
-        select m.sec_sid, count, array_agg(w.pri_source||'::'||w.pri_sid) 
+        select m.sec_sid, count, array_agg(w.pri_sid_type||'::'||w.pri_sid) 
         from sec.temp_mult_utn m
-        inner join sec.who_tr_sec_ids w
+        inner join sec.who_sec_ids w
         on m.sec_sid = w.sec_sid
         group by m.sec_sid, count
         order by m.sec_sid;"#;
@@ -170,30 +157,18 @@ pub async fn setup_utn_processing(pool: &Pool<Postgres>) -> Result<Vec<LinkedRec
 
 
 pub async fn complete_utn_processing(pool: &Pool<Postgres>) -> Result<u64, AppError> {
-
-    let sql = r#"insert into sec.temp_tr_sec_ids (pri_source, pri_sid, sec_source, sec_sid)
-    select n.pri_source, n.pri_sid, n.sec_source, n.sec_sid
-    from sec.new_recs n
-    left join sec.temp_tr_sec_ids s
-    on n.pri_source = s.pri_source and n.pri_sid = s.pri_sid
-    and n.sec_source = s.sec_source and n.sec_sid = s.sec_sid
-    where s.pri_source is null;"#;
-        
-    let n = execute_sql(&sql, pool).await?;
     
     let sql = r#"drop table if exists sec.temp_mult_utn;
         drop table if exists sec.temp_mult_utn_dets;
         truncate table sec.new_recs;"#;
-        
-    execute_sql(&sql, pool).await?;
-    
-    Ok(n)
+    execute_sql(&sql, pool).await
 }
 
 
 pub async fn setup_sponsor_id_processing(pool: &Pool<Postgres>) -> Result<Vec<LinkedRec>, AppError> {
 
-    let sql = r#"drop table if exists sec.temp_mult_sponsor_source_id;
+    let sql = r#"SET client_min_messages TO WARNING;
+    drop table if exists sec.temp_mult_sponsor_source_id;
     create table sec.temp_mult_sponsor_source_id (
                 sponsor     varchar,
                 sec_id      varchar,
@@ -213,22 +188,22 @@ pub async fn setup_sponsor_id_processing(pool: &Pool<Postgres>) -> Result<Vec<Li
 
 
     let sql = r#"insert into sec.temp_mult_sponsor_source_id(sponsor, sec_id, count_sids, count_sources)
-        select sponsor, sec_id, count(pri_sid), count(distinct pri_source)
-        from sec.temp_oth_sec_ids
+        select sponsor, sec_id, count(pri_sid), count(distinct pri_sid_type)
+        from sec.other_sec_ids
         where length(sec_id) > 4
         and sec_id not in ('000000', '0000-00000', '11111')
         group by sponsor, sec_id
         having count(pri_sid) > 1  
-        and count(distinct pri_source) = count(pri_sid)
+        and count(distinct pri_sid_type) = count(pri_sid)
         order by count(pri_sid) desc, sec_id;"#;
 
     execute_sql(&sql, pool).await?;
 
 
     let sql = r#"insert into sec.temp_mult_sponsor_id_dets(sec_id, sponsor, count, array_agg)
-        select m.sec_id, m.sponsor, m.count_sids, array_agg(w.pri_source||'::'||w.pri_sid) 
+        select m.sec_id, m.sponsor, m.count_sids, array_agg(w.pri_sid_type||'::'||w.pri_sid) 
         from sec.temp_mult_sponsor_source_id m
-        inner join sec.temp_oth_sec_ids w
+        inner join sec.other_sec_ids w
         on m.sec_id = w.sec_id
         and m.sponsor = w.sponsor
         group by m.sec_id, m.sponsor, m.count_sids
@@ -247,24 +222,11 @@ pub async fn setup_sponsor_id_processing(pool: &Pool<Postgres>) -> Result<Vec<Li
 
 
 pub async fn complete_sponsor_id_processing(pool: &Pool<Postgres>) -> Result<u64, AppError> {
-
-    let sql = r#"insert into sec.temp_tr_sec_ids (pri_source, pri_sid, sec_source, sec_sid)
-    select n.pri_source, n.pri_sid, n.sec_source, n.sec_sid
-    from sec.new_recs n
-    left join sec.temp_tr_sec_ids s
-    on n.pri_source = s.pri_source and n.pri_sid = s.pri_sid
-    and n.sec_source = s.sec_source and n.sec_sid = s.sec_sid
-    where s.pri_source is null;"#;
-        
-    let n = execute_sql(&sql, pool).await?;
-    
+   
     let sql = r#"drop table if exists sec.temp_mult_sponsor_source_id;
         drop table if exists sec.temp_mult_sponsor_id_dets;
         truncate table sec.new_recs;"#;
-        
-    execute_sql(&sql, pool).await?;
-    
-    Ok(n)
+    execute_sql(&sql, pool).await
 }
 
 
@@ -312,82 +274,111 @@ pub async fn process_links(recs: Vec<LinkedRec>, pool: &Pool<Postgres>) -> Resul
 
 pub async fn add_new_recs(pool: &Pool<Postgres>) -> Result<u64, AppError> {
    
-    let sql = r#"insert into sec.temp_tr_sec_ids (pri_source, pri_sid, sec_source, sec_sid)
-        select n.pri_source, n.pri_sid, n.sec_source, n.sec_sid
+    let sql = r#"insert into sec.initial_tr_sec_ids (pri_sid_type, pri_sid, sec_sid_type, sec_sid)
+        select n.pri_sid_type, n.pri_sid, n.sec_sid_type, n.sec_sid
         from sec.new_recs n
-        left join sec.temp_tr_sec_ids s
-        on n.pri_source = s.pri_source and n.pri_sid = s.pri_sid
-        and n.sec_source = s.sec_source and n.sec_sid = s.sec_sid
-        where s.pri_source is null;"#;
+        left join sec.initial_tr_sec_ids s
+        on n.pri_sid_type = s.pri_sid_type and n.pri_sid = s.pri_sid
+        and n.sec_sid_type = s.sec_sid_type and n.sec_sid = s.sec_sid
+        where s.pri_sid_type is null;"#;
         
     execute_sql(&sql, pool).await
 }
 
 
+// Extract the secondary ids that have the same source TR into separate table
 
-pub async fn assign_prefs_and_rearrange(pool: &Pool<Postgres>) -> Result<(), AppError> {
+pub async fn separate_same_registry_secids(pool: &Pool<Postgres>) -> Result<u64, AppError> {
+    
+   let sql = format!(r#"drop table if exists sec.same_tr_sec_ids;
+        create table sec.same_tr_sec_ids as 
+        select * from sec.initial_tr_sec_ids
+        where pri_sid_type = sec_sid_type
+        order by pri_sid;"#);
+    
+    execute_sql(&sql, pool).await?;
+
+    let sql = format!(r#"delete from sec.initial_tr_sec_ids
+        where pri_sid_type = sec_sid_type"#);
+
+    let n = execute_sql(&sql, pool).await?;
+
+    Ok(n)
+}
+
+
+pub async fn assign_prefs_and_rearrange(pool: &Pool<Postgres>) -> Result<(u64, u64), AppError> {
 
     let sql = r#"SET client_min_messages TO WARNING;
-        drop table if exists sec.tr_sec_ids;
-        create table sec.tr_sec_ids (
-          pri_pref       int4
-        , pri_source     int4
-        , pri_sid        varchar 
-        , sec_pref       int4
-        , sec_source     int4
-        , sec_sid        varchar
+        drop table if exists sec.temp_tr_ids_with_pref;
+        create table sec.temp_tr_ids_with_pref (
+          pri_pref         int4
+        , pri_sid_type     int4
+        , pri_sid          varchar 
+        , sec_pref         int4
+        , sec_sid_type     int4
+        , sec_sid          varchar
     );
 
     drop table if exists sec.tr_ids;
         create table sec.tr_ids (
           p_pref       int4
-        , p_source     int4
+        , p_type       int4
         , p_sid        varchar 
         , n_pref       int4
-        , n_source     int4
+        , n_type       int4
         , n_sid        varchar
     );"#;
-    
     execute_sql(sql, pool).await?;
 
-    let sql = r#"insert into sec.tr_sec_ids(pri_pref, pri_source, pri_sid, sec_pref, sec_source, sec_sid)
-        select p1.preference_rating, s.pri_source, s.pri_sid, p2.preference_rating, s.sec_source, s.sec_sid
-        from sec.temp_tr_sec_ids s
+    let sql = r#"insert into sec.temp_tr_ids_with_pref(pri_pref, pri_sid_type, pri_sid, sec_pref, sec_sid_type, sec_sid)
+        select p1.preference_rating, s.pri_sid_type, s.pri_sid, p2.preference_rating, s.sec_sid_type, s.sec_sid
+        from sec.initial_tr_sec_ids s
         inner join mon_src.parameters p1
-        on pri_source = p1.id
+        on pri_sid_type = p1.sid_type_id
         inner join mon_src.parameters p2
-        on sec_source = p2.id;"#;
-
+        on sec_sid_type  = p2.sid_type_id;"#;
     execute_sql(sql, pool).await?;
 
 
-    let sql = r#"insert into sec.tr_ids (p_pref, p_source, p_sid, n_pref, n_source, n_sid)
-        select pri_pref, pri_source, pri_sid, sec_pref, sec_source, sec_sid
-        from sec.tr_sec_ids
+    let sql = r#"insert into sec.tr_ids (p_pref, p_type, p_sid, n_pref, n_type, n_sid)
+        select pri_pref, pri_sid_type, pri_sid, sec_pref, sec_sid_type, sec_sid
+        from sec.temp_tr_ids_with_pref
         where pri_pref > sec_pref;"#;
-   
-    execute_sql(sql, pool).await?;
+    let n1 = execute_sql(sql, pool).await?;
 
-
-    let sql = r#"insert into sec.tr_ids (p_pref, p_source, p_sid, n_pref, n_source, n_sid)
-        select sec_pref, sec_source, sec_sid, pri_pref, pri_source, pri_sid
-        from sec.tr_sec_ids
+    let sql = r#"insert into sec.tr_ids (p_pref, p_type, p_sid, n_pref, n_type, n_sid)
+        select sec_pref, sec_sid_type, sec_sid, pri_pref, pri_sid_type, pri_sid
+        from sec.temp_tr_ids_with_pref
         where pri_pref < sec_pref;"#;
-   
-    execute_sql(sql, pool).await?;
+    let n2 = execute_sql(sql, pool).await?;
         
-    Ok(())
+    Ok((n1, n2))
 }
 
 
 
-pub async fn retain_distinct(pool: &Pool<Postgres>) -> Result<(), AppError> {
+pub async fn retain_distinct(pool: &Pool<Postgres>) -> Result<i64, AppError> {
 
     let sql = r#"drop table if exists sec.distinct_tr_ids;
                create table sec.distinct_tr_ids
                as select distinct * from sec.tr_ids;"#;
-    
     execute_sql(sql, pool).await?;
 
-    Ok(())
+    
+    let sql = r#"drop table sec.tr_ids;
+            alter table sec.distinct_tr_ids rename to tr_ids"#;
+    execute_sql(sql, pool).await?;
+
+    // Do some tidying up
+
+    let sql = r#"SET client_min_messages TO WARNING;
+        drop table if exists sec.temp_tr_ids_with_pref;
+
+        drop table if exists sec.new_recs;"#;
+    execute_sql(sql, pool).await?;
+
+    // return number of records remaining
+    get_table_record_count("sec.tr_ids", pool).await
+
 }
