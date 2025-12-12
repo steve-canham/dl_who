@@ -983,7 +983,7 @@ pub fn  split_ids(sd_sid: &String, in_string: &String, source_field: &str) -> Ve
             this_s = s.replace(" (NTR", ", NTR").replace(")", "");
         }
 
-        if this_s.contains(",") {
+        if this_s.contains(", ") {
 
             // terms may contain multiple ids separated by 1 or more commas, 
             // with the order of id types varying and inconsistent
@@ -1073,7 +1073,58 @@ pub fn  split_ids(sd_sid: &String, in_string: &String, source_field: &str) -> Ve
 
 pub fn get_sec_id_details(sec_id: &str) -> SecIdBase {
 
-        let mut sid = contains_nct(sec_id);
+    if let Some(id) = contains_nct(sec_id) { id } else 
+    if let Some(id) = contains_euctr(sec_id) {id } else 
+    if let Some(id) = contains_isrctn(sec_id) { id } else 
+    if let Some(id) = contains_actrn(sec_id) {id } else 
+    if let Some(id) = contains_drks(sec_id) {id } else 
+    if let Some(id) = contains_ctri(sec_id) { id } else 
+    if let Some(id) = contains_who(sec_id) {id } else 
+    if let Some(id) = contains_umin(sec_id) { id } else 
+    if let Some(id) = contains_jcrt(sec_id) {id } else 
+    if let Some(id) = contains_japic(sec_id) { id } else 
+    if let Some(id) = contains_jma(sec_id) {id } else 
+    if let Some(id) = contains_jprn(sec_id) {id } else 
+    if let Some(id) = contains_nl(sec_id) { id } else 
+    if let Some(id) = contains_ntr(sec_id) {id } else 
+    if let Some(id) = contains_rpuec(sec_id) {id } 
+    else 
+    {
+        let upid = sec_id.to_uppercase();
+        let sec_id_type_id = match upid {
+        _ if upid.starts_with("CHICTR") => 118,
+        _ if upid.starts_with("IRCT") => 125,
+        _ if upid.starts_with("KCT") =>  119,
+        _ if upid.starts_with("RBR") => 117, 
+        _ if upid.starts_with("RPCEC") => 122,
+        _ if upid.starts_with("PACTR") => 128,
+        _ if upid.starts_with("SLCTR") => 130,
+        _ if upid.starts_with("TCTR") => 131,
+        _ if upid.starts_with("LBCTR") => 133,
+        _ if upid.starts_with("ITMCTR") => 134,
+        _ if upid.starts_with("CHIMCTR") => 134,
+        _ => 0
+        };
+
+        if sec_id_type_id > 0 {
+            SecIdBase{
+                processed_id: sec_id.to_string(),
+                sec_id_type_id: sec_id_type_id,
+            }
+        } else {
+
+            // Return the original secondary id without any identified type.
+
+            SecIdBase{
+                processed_id: sec_id.to_string(),
+                sec_id_type_id: 990,
+            }
+        }
+    }
+}
+
+/* 
+        //let mut sid = contains_nct(sec_id);
         if sid.is_none() {
             sid = contains_euctr(sec_id);
             if sid.is_none() {
@@ -1155,8 +1206,7 @@ pub fn get_sec_id_details(sec_id: &str) -> SecIdBase {
         }
         
         sid.unwrap()   // always has a value
-
-    }
+*/
 
     
 // Collection of regex check functions, where the regex is stored
