@@ -12,14 +12,13 @@ async fn execute_sql(sql: &str, pool: &Pool<Postgres>) -> Result<u64, AppError> 
     Ok(res.rows_affected())
 }
 
-async fn get_table_record_count(table_name: &str, pool: &Pool<Postgres>) -> Result<i64, AppError> {
+pub async fn get_table_record_count(table_name: &str, pool: &Pool<Postgres>) -> Result<i64, AppError> {
 
     let sql = format!(r"select count(*) from {}", table_name);
       
     sqlx::query_scalar(&sql).fetch_one(pool)
             .await.map_err(|e| AppError::SqlxError(e, sql.to_string()))
 }
-
 
 
 pub async fn set_up_init_sec_id_tables (pool: &Pool<Postgres>) -> Result<u64, AppError> {
@@ -49,24 +48,17 @@ pub async fn set_up_init_sec_id_tables (pool: &Pool<Postgres>) -> Result<u64, Ap
 
 pub async fn process_sec_ids(entry: &BasTable, pool: &Pool<Postgres>) -> Result<(u64, u64), AppError> {
 
-    let _ = entry.source_id;
-    let _ = entry.source_name; // to avoid warnings for now
-
     let sql = format!(r#"insert into sec.initial_tr_sec_ids (pri_sid_type, pri_sid, sec_sid_type, sec_sid)
-        select p.sid_type_id, sd_sid, SPLIT_PART(unnest(reg_sec_ids), '::', 1)::int4, SPLIT_PART(unnest(reg_sec_ids), '::', 2)
-        from dat.{} d
-        inner join mon_src.parameters p
-        on d.source_id = p.id
+        select sid_type_id, sd_sid, SPLIT_PART(unnest(reg_sec_ids), '::', 1)::int4, SPLIT_PART(unnest(reg_sec_ids), '::', 2)
+        from dat.{} 
         where reg_sec_ids is not null
         order by sd_sid;"#, entry.table_name);
 
     let tr = execute_sql(&sql, pool).await?;
         
     let sql = format!(r#"insert into sec.other_sec_ids (pri_sid_type, pri_sid, sponsor, sec_id)
-        select p.sid_type_id, sd_sid, sponsor_processed, unnest(oth_sec_ids) 
-        from dat.{} d
-        inner join mon_src.parameters p
-        on d.source_id = p.id
+        select sid_type_id, sd_sid, sponsor_processed, unnest(oth_sec_ids) 
+        from dat.{}
         where oth_sec_ids is not null
         order by sd_sid;"#, entry.table_name);
 
@@ -247,9 +239,9 @@ pub async fn process_links(recs: Vec<LinkedRec>, pool: &Pool<Postgres>) -> Resul
                 let sec_rec: Vec<&str> = rec.array_agg[j as usize].split("::").collect();
                 
                 let new_rec = OutputRec {
-                    pri_source: pri_rec[0].parse().unwrap(),
+                    pri_sid_type: pri_rec[0].parse().unwrap(),
                     pri_sid: pri_rec[1].to_string(),
-                    sec_source: sec_rec[0].parse().unwrap(),
+                    sec_sid_type: sec_rec[0].parse().unwrap(),
                     sec_sid: sec_rec[1].to_string(),
                 };
                 ors.add_rec(&new_rec);
@@ -306,7 +298,6 @@ pub async fn separate_same_registry_secids(pool: &Pool<Postgres>) -> Result<u64,
     Ok(n)
 }
 
-
 pub async fn assign_prefs_and_rearrange(pool: &Pool<Postgres>) -> Result<(u64, u64), AppError> {
 
     let sql = r#"SET client_min_messages TO WARNING;
@@ -332,14 +323,13 @@ pub async fn assign_prefs_and_rearrange(pool: &Pool<Postgres>) -> Result<(u64, u
     execute_sql(sql, pool).await?;
 
     let sql = r#"insert into sec.temp_tr_ids_with_pref(pri_pref, pri_sid_type, pri_sid, sec_pref, sec_sid_type, sec_sid)
-        select p1.preference_rating, s.pri_sid_type, s.pri_sid, p2.preference_rating, s.sec_sid_type, s.sec_sid
+        select p1.pref_rating, s.pri_sid_type, s.pri_sid, p2.pref_rating, s.sec_sid_type, s.sec_sid
         from sec.initial_tr_sec_ids s
-        inner join mon_src.parameters p1
-        on pri_sid_type = p1.sid_type_id
-        inner join mon_src.parameters p2
-        on sec_sid_type  = p2.sid_type_id;"#;
+        inner join cxt_lups.study_identifier_types p1
+        on pri_sid_type = p1.id
+        inner join cxt_lups.study_identifier_types p2
+        on sec_sid_type  = p2.id;"#;
     execute_sql(sql, pool).await?;
-
 
     let sql = r#"insert into sec.tr_ids (p_pref, p_type, p_sid, n_pref, n_type, n_sid)
         select pri_pref, pri_sid_type, pri_sid, sec_pref, sec_sid_type, sec_sid
@@ -352,15 +342,27 @@ pub async fn assign_prefs_and_rearrange(pool: &Pool<Postgres>) -> Result<(u64, u
         from sec.temp_tr_ids_with_pref
         where pri_pref < sec_pref;"#;
     let n2 = execute_sql(sql, pool).await?;
+
+    // Do some tidying up
+
+    let sql = r#"SET client_min_messages TO WARNING;
+        drop table if exists sec.temp_tr_ids_with_pref;
+        drop table if exists sec.initial_tr_sec_ids;
+        drop table if exists sec.new_recs;"#;
+    execute_sql(sql, pool).await?;
         
     Ok((n1, n2))
 }
 
 
 
-pub async fn retain_distinct(pool: &Pool<Postgres>) -> Result<i64, AppError> {
+pub async fn remove_duplicate_tr_id_records(pool: &Pool<Postgres>) -> Result<(i64, i64), AppError> {
 
-    let sql = r#"drop table if exists sec.distinct_tr_ids;
+    // return initial number of records
+    let nb = get_table_record_count("sec.tr_ids", pool).await?;
+
+    let sql = r#"SET client_min_messages TO WARNING;
+               drop table if exists sec.distinct_tr_ids;
                create table sec.distinct_tr_ids
                as select distinct * from sec.tr_ids;"#;
     execute_sql(sql, pool).await?;
@@ -370,15 +372,71 @@ pub async fn retain_distinct(pool: &Pool<Postgres>) -> Result<i64, AppError> {
             alter table sec.distinct_tr_ids rename to tr_ids"#;
     execute_sql(sql, pool).await?;
 
-    // Do some tidying up
+    // get number of records remaining
+    let na = get_table_record_count("sec.tr_ids", pool).await?;
+
+    Ok((nb, na))
+}
+
+
+pub async fn remove_old_dutch_links(pool: &Pool<Postgres>) -> Result<u64, AppError> {
 
     let sql = r#"SET client_min_messages TO WARNING;
-        drop table if exists sec.temp_tr_ids_with_pref;
-
-        drop table if exists sec.new_recs;"#;
+        drop table if exists sec.dutch_old_ids;
+        create table sec.dutch_old_ids (
+          p_type       int4
+        , p_sid        varchar 
+        , n_type       int4
+        , n_sid        varchar
+        );"#;
     execute_sql(sql, pool).await?;
 
-    // return number of records remaining
-    get_table_record_count("sec.tr_ids", pool).await
+    let sql = r#"insert into sec.dutch_old_ids (p_type, p_sid, n_type, n_sid)
+        select p_type, p_sid, n_type, n_sid from sec.tr_ids
+        where p_type = 132
+        and n_type in (181, 182);"#;
+    execute_sql(sql, pool).await?;
 
+    let sql = r#"delete from sec.tr_ids 
+        where p_type = 132
+        and n_type in (181, 182);"#;
+    execute_sql(sql, pool).await
 }
+
+
+pub async fn replace_remaining_dutch_links(pool: &Pool<Postgres>) -> Result<(u64, u64), AppError> {
+
+    // This pocedure first identifies the new records that need to be added to sec.tr_ids,
+    // created by linking records referencing old dutch ids to the new ids instead. A union of two
+    // datasets is needed, as in some cases the original reference will have greater preference 
+    // than nntr (=74), in others less. 
+    // The original records can then be deleted.
+
+    let sql = r#"insert into sec.tr_ids (p_pref, p_type, p_sid, n_pref, n_type, n_sid)
+        select * from 
+        (select t.p_pref, t.p_type, t.p_sid as sid1, 74, d.p_type, d.p_sid
+        from sec.tr_ids t inner join sec.dutch_old_ids d
+        on t.n_sid = d.n_sid
+        where t.p_type <> 132
+        and t.n_type in (181, 182)
+        and t.p_pref > 74
+        union
+        select 74, d.p_type, d.p_sid as sid1, t.p_pref, t.p_type, t.p_sid 
+        from sec.tr_ids t inner join sec.dutch_old_ids d
+        on t.n_sid = d.n_sid
+        where t.p_type <> 132
+        and t.n_type in (181, 182)
+        and t.p_pref < 74) a
+        order by sid1;"#;
+    let n1 = execute_sql(sql, pool).await?;
+
+    let sql = r#"delete from sec.tr_ids 
+        where p_type <> 132
+        and n_type in (181, 182);"#;
+    let n2 = execute_sql(sql, pool).await?;
+
+    Ok((n1, n2))
+}
+
+
+

@@ -17,8 +17,8 @@ pub async fn set_up_data_tables(pool: &Pool<Postgres>) -> Result<(), AppError> {
   
     let sql = r#"drop table if exists der.study_reg_numbers;
     create table der.study_reg_numbers (
-          source_id  int4
-        , source_name varchar
+          sid_type_id  int4
+        , sid_type_name varchar
         , reg_year int4
         , num int4
     );"#;
@@ -27,8 +27,8 @@ pub async fn set_up_data_tables(pool: &Pool<Postgres>) -> Result<(), AppError> {
 
     let sql = r#"drop table if exists der.study_enrol_numbers;
     create table der.study_enrol_numbers (
-          source_id  int4
-        , source_name varchar
+          sid_type_id  int4
+        , sid_type_name varchar
         , enrol_year int4
         , num int4
     );"#;
@@ -37,8 +37,8 @@ pub async fn set_up_data_tables(pool: &Pool<Postgres>) -> Result<(), AppError> {
 
     let sql = r#"drop table if exists der.study_types;
     create table der.study_types (
-          source_id  int4
-        , source_name varchar
+          sid_type_id  int4
+        , sid_type_name varchar
         , reg_year int4
         , study_type_id int4
         , num int4
@@ -48,8 +48,8 @@ pub async fn set_up_data_tables(pool: &Pool<Postgres>) -> Result<(), AppError> {
 
     let sql = r#"drop table if exists der.study_statuses;
     create table der.study_statuses (
-          source_id  int4
-        , source_name varchar
+          sid_type_id  int4
+        , sid_type_name varchar
         , reg_year int4
         , study_status_id int4
         , num int4
@@ -59,8 +59,8 @@ pub async fn set_up_data_tables(pool: &Pool<Postgres>) -> Result<(), AppError> {
 
     let sql = r#"drop table if exists der.temp_unnested_countries;
     create table der.temp_unnested_countries (
-          source_id  int4
-        , source_name varchar
+          sid_type_id  int4
+        , sid_type_name varchar
         , reg_year int4
         , country varchar
     );"#;
@@ -69,8 +69,8 @@ pub async fn set_up_data_tables(pool: &Pool<Postgres>) -> Result<(), AppError> {
 
     let sql = r#"drop table if exists der.study_countries;
     create table der.study_countries (
-          source_id  int4
-        , source_name varchar
+          sid_type_id  int4
+        , sid_type_name varchar
         , reg_year int4
         , country varchar
         , num int4
@@ -87,8 +87,8 @@ pub async fn set_up_data_grid (pool: &Pool<Postgres>, grid_name: &str) -> Result
 let sql = format!(r#"drop table if exists der.grid_{};
     create table der.grid_{}
     (
-          source_id   int4    not null
-        , source_name varchar not null
+          sid_type_id   int4    not null
+        , sid_type_name varchar not null
         , not_given   int4 not null default(0)
         , pre_2000    int4 not null default(0)
         , y2000       int4 not null default(0)
@@ -124,7 +124,7 @@ let sql = format!(r#"drop table if exists der.grid_{};
         , y2030       int4 not null default(0)
         , line_total  int4 not null default(0)
     );
-    create index grid_{}_src_id on der.grid_{}(source_id);"#, 
+    create index grid_{}_src_id on der.grid_{}(sid_type_id);"#, 
     grid_name, grid_name, grid_name, grid_name);
 
     execute_sql(&sql, pool).await?;
@@ -138,8 +138,8 @@ pub async fn set_up_categorised_data_grid (pool: &Pool<Postgres>, grid_name: &st
 let sql = format!(r#"drop table if exists der.grid_{};
     create table der.grid_{}
     (
-          source_id   int4    not null
-        , source_name varchar not null
+          sid_type_id   int4    not null
+        , sid_type_name varchar not null
         , category_id int4    not null
         , category    varchar not null
         , not_given   int4 not null default(0)
@@ -177,7 +177,7 @@ let sql = format!(r#"drop table if exists der.grid_{};
         , y2030       int4 not null default(0)
         , line_total  int4 not null default(0)
     );
-    create index grid_{}_src_id on der.grid_{}(source_id);"#, 
+    create index grid_{}_src_id on der.grid_{}(sid_type_id);"#, 
     grid_name, grid_name, grid_name, grid_name);
 
     execute_sql(&sql, pool).await?;
@@ -190,40 +190,40 @@ pub async fn set_up_data_grids (pool: &Pool<Postgres>) -> Result<(), AppError> {
 
     set_up_data_grid(pool, "reg_numbers").await?;
 
-    let sql = r#"Insert into der.grid_reg_numbers (source_id, source_name)
-        select distinct source_id, source_name
+    let sql = r#"Insert into der.grid_reg_numbers (sid_type_id, sid_type_name)
+        select distinct sid_type_id, sid_type_name
         from met.tables 
-        order by source_id;"#;
+        order by sid_type_id;"#;
     execute_sql(sql, pool).await?;
 
-    let sql = r#"Insert into der.grid_reg_numbers (source_id, source_name)
+    let sql = r#"Insert into der.grid_reg_numbers (sid_type_id, sid_type_name)
         values(800000, 'column_total');"#;
     execute_sql(sql, pool).await?;
 
 
     set_up_data_grid(pool, "enrol_numbers").await?;
    
-    let sql = r#"Insert into der.grid_enrol_numbers (source_id, source_name)
-        select distinct source_id, source_name
+    let sql = r#"Insert into der.grid_enrol_numbers (sid_type_id, sid_type_name)
+        select distinct sid_type_id, sid_type_name
         from met.tables 
-        order by source_id;"#;
+        order by sid_type_id;"#;
     execute_sql(sql, pool).await?;
 
-    let sql = r#"Insert into der.grid_enrol_numbers (source_id, source_name)
+    let sql = r#"Insert into der.grid_enrol_numbers (sid_type_id, sid_type_name)
         values(800000, 'column_total');"#;
     execute_sql(sql, pool).await?;
 
 
     set_up_categorised_data_grid(pool, "type_numbers").await?;
 
-    let sql = r#"Insert into der.grid_type_numbers (source_id, source_name, category_id, category)
-        select distinct t.source_id, t.source_name, st.id, st.name 
+    let sql = r#"Insert into der.grid_type_numbers (sid_type_id, sid_type_name, category_id, category)
+        select distinct t.sid_type_id, t.sid_type_name, st.id, st.name 
         from met.tables t
         cross join cxt_lups.study_types st
-        order by t.source_id, st.id;"#;
+        order by t.sid_type_id, st.id;"#;
     execute_sql(sql, pool).await?;
 
-    let sql = r#"Insert into der.grid_type_numbers (source_id, source_name, category_id, category)
+    let sql = r#"Insert into der.grid_type_numbers (sid_type_id, sid_type_name, category_id, category)
         select 800000, 'column_total', st.id, st.name 
         from cxt_lups.study_types st
         order by st.id;"#;
@@ -232,14 +232,14 @@ pub async fn set_up_data_grids (pool: &Pool<Postgres>) -> Result<(), AppError> {
 
     set_up_categorised_data_grid(pool, "status_numbers").await?;
 
-    let sql = r#"Insert into der.grid_status_numbers (source_id, source_name, category_id, category)
-        select distinct t.source_id, t.source_name, ss.id, ss.name 
+    let sql = r#"Insert into der.grid_status_numbers (sid_type_id, sid_type_name, category_id, category)
+        select distinct t.sid_type_id, t.sid_type_name, ss.id, ss.name 
         from met.tables t
         cross join cxt_lups.study_statuses ss
-        order by t.source_id, ss.id;"#;
+        order by t.sid_type_id, ss.id;"#;
     execute_sql(sql, pool).await?;
 
-    let sql = r#"Insert into der.grid_status_numbers (source_id, source_name, category_id, category)
+    let sql = r#"Insert into der.grid_status_numbers (sid_type_id, sid_type_name, category_id, category)
         select 800000, 'column_total', ss.id, ss.name 
         from cxt_lups.study_statuses ss
         order by ss.id;"#;
@@ -256,9 +256,9 @@ pub async fn set_up_data_grids (pool: &Pool<Postgres>) -> Result<(), AppError> {
 
 pub async fn fetch_table_list(pool: &Pool<Postgres>) -> Result<Vec<BasTable>, AppError> {
   
-  let sql = r#"select table_name, source_id, source_name
+  let sql = r#"select table_name
         from met.tables
-        order by source_id;"#;
+        order by table_name;"#;
 
   sqlx::query_as(&sql).fetch_all(pool).await
              .map_err(|e| AppError::SqlxError(e, sql.to_string()))

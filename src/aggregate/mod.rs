@@ -8,13 +8,11 @@ use crate::AppError;
 use log::info;
 
 
-
 pub async fn identify_linked_studies(pool: &Pool<Postgres>) -> Result<(), AppError> {
  
-    // First get the list of source tables, and link to the source parameter tables in mon
+    // First get the list of source tables
 
     let tables = data_access::fetch_table_list(pool).await?;
-    ftw::set_up_schema("mon.src", pool).await?;
 
     // Then, collect the secondary ids into two temporary tables
     // One for the secondary ids that are trial registry ids, 
@@ -58,18 +56,21 @@ pub async fn identify_linked_studies(pool: &Pool<Postgres>) -> Result<(), AppErr
     let links = dedup::setup_sponsor_id_processing(pool).await?;
     let n = dedup::process_links(links, pool).await?;
     info!("{} new link records generated from shared sponsor id links", n);
-    let r = dedup::add_new_recs(pool).await?;
-    info!("{} new sponsor id based link records added to listing of links", r);
+    let n = dedup::add_new_recs(pool).await?;
+    info!("{} new sponsor id based link records added to listing of links", n);
     dedup::complete_sponsor_id_processing(pool).await?;
+    let n = dedup::separate_same_registry_secids(pool).await?;
 
     // Extract the secondary ids that have the same source TR into separate table.
     // These refer to studies that are related rather than equivalences, though
     // the nature of the relationshipo is unclear. In some cases, (e.g. for CTG and the Dutch
     // registry), same registry links maty refer to new sids being supplied within the
-    // registry for a single study 0 this needs further )
+    // registry for a single study (this needs further work)
 
-    let n = dedup::separate_same_registry_secids(pool).await?;
-    info!("{} secondary ids from same registry separated out", n);
+    info!("{} links between srtudies in the same registry separated out", n);
+    let n = dedup::get_table_record_count("sec.initial_tr_sec_ids", pool).await?;
+    info!("{} links between study ids in different trial registries discovered", n);
+    info!("");
 
     // In many case the secondary id links will have been provided in
     // both directions, i.e. A<-B and B<-A. To identify these duplicates the
@@ -78,14 +79,45 @@ pub async fn identify_linked_studies(pool: &Pool<Postgres>) -> Result<(), AppErr
     // most preferred source <- less preferred source.
     // Once this is done the duplicates can be removed by selecting distinct records.
 
-
+    ftw::set_up_schema("cxt.lups", pool).await?;
     let (n1, n2) = dedup::assign_prefs_and_rearrange(pool).await?;
-    info!("{} secondary id links added alreadty in preferred order", n1);
-    info!("{} secondary id links reversed and added as in non-preferred order", n2);
-    let n = dedup::retain_distinct(pool).await?;
-    info!("{} distinct secondary id links retained, from {}", n, n1+n2);
+    info!("{} ordered secondary id links added, already in preferred order", n1);
+    info!("{} ordered secondary id links reversed and added as in non-preferred order", n2);
+    let (nb, na) = dedup::remove_duplicate_tr_id_records(pool).await?;
+    info!("{} duplicate tr_id records removed", nb - na);
+    let n = dedup::get_table_record_count("sec.tr_ids", pool).await?;
+    info!("{} distinct links between study ids available", n);
+    info!("");
 
-    
+    // A large chunk of the linked study ids are from the Dutch trial registry,
+    // which for many studies has 1 or 2 old registry ids. These need to be removed 
+    // to a separate table.
+    // Once there they can be used to update any reference to the old ids (linking to 
+    // non Dutch ids) by replacing them with the equivalent new id. N.N. In some cases 
+    // the old dutch id links to 2 new NL-OMON ids.
+
+    let n = dedup::remove_old_dutch_links(pool).await?;
+    info!("{} records with links between old (NTR, NL) and new (OMON) Dutch ids removed", n);
+    let (n1, n2) = dedup::replace_remaining_dutch_links(pool).await?;
+    info!("{} links to new Dutch sids added", n1);
+    info!("{} links to old Dutch sids removed", n2);
+    let (nb, na) = dedup::remove_duplicate_tr_id_records(pool).await?;
+    info!("{} duplicate tr_id records removed", nb - na);
+    let n = dedup::get_table_record_count("sec.tr_ids", pool).await?;
+    info!("{} distinct links between study ids available", n);
+    info!("");
+
+    // The references (if any) to old CTG ids is more difficult to manage, as these 
+    // ids are identical in form to the existing NCT numbers and there is nothing in the 
+    // WHO data that differentiates them from other NCT Ids. Fortunately other sources, 
+    // in particular the AACT database version of the CTG data, can be used to retrieve
+    // the 3300 obsolete NCT ids and their corresponing new values (this list is presumed 
+    // to be fixed now). These values are imported have ben importedinto the ???? db.schema
+    // as a static resource.
+
+
+
+
     // In some cases the relationships between studies is 1:n rather than 1:1, 
     // i.e. a study registered in one trial registry is equivalent to 2 or more 
     // studies in another registry. In these situations the '1' study (but not the 'n') can
@@ -94,6 +126,8 @@ pub async fn identify_linked_studies(pool: &Pool<Postgres>) -> Result<(), AppErr
     // processed further. This shoud really be recorded as a separate type of 
     // inter-study relationship, as it was in the crMDR.
      
+
+
 
     // n:n links may also occur, though these are relatively rare. 
     // For further exploration.
