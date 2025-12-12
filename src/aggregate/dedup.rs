@@ -157,6 +157,74 @@ pub async fn complete_utn_processing(pool: &Pool<Postgres>) -> Result<u64, AppEr
 }
 
 
+pub async fn tidy_other_sec_ids(pool: &Pool<Postgres>) -> Result<(), AppError> {
+    
+    let sql = r#"update sec.other_sec_ids set sec_id = regexp_replace(sec_id, '\.$', '', 'g') where sec_id ~ '\.$'"#;
+    execute_sql(&sql, pool).await?;
+
+    let sql = r#"update sec.other_sec_ids set sec_id = regexp_replace(sec_id, '^\:', '', 'g') where sec_id ~ '^\:'"#;
+    execute_sql(&sql, pool).await?;
+
+    let sql = r#"update sec.other_sec_ids set sec_id = regexp_replace(sec_id, '^#', '', 'g') where sec_id ~ '^#'"#;
+    execute_sql(&sql, pool).await?;
+
+    let sql = r#"update sec.other_sec_ids set sec_id = trim(sec_id) where sec_id ~ '^ '"#;
+    execute_sql(&sql, pool).await?;
+    Ok(())
+}
+
+
+pub async fn tidy_sponsor_names(pool: &Pool<Postgres>) -> Result<(), AppError> {
+    
+    let sql = r#"delete from sec.other_sec_ids
+        where sec_id ~ '^[0\- ]+$'"#;
+    execute_sql(&sql, pool).await?;
+
+    let sql = r#"update sec.other_sec_ids
+        set sponsor = 'wyeth (now part of pfizer)'
+        where sponsor like 'wyeth%'"#;
+    execute_sql(&sql, pool).await?;
+
+    let sql = r#"update sec.other_sec_ids
+        set sponsor = 'novartis'
+        where sponsor like 'novartis pharma%'
+        or sponsor like 'novartis farma%'
+        or sponsor like 'novartis health%'"#;
+    execute_sql(&sql, pool).await?;
+
+    let sql = r#"update sec.other_sec_ids
+        set sponsor = 'novo nordisk'
+        where sponsor like 'novo nordisk%'"#;
+    execute_sql(&sql, pool).await?;
+
+    let sql = r#"update sec.other_sec_ids
+        set sponsor = 'glaxosmithkline'
+        where sponsor like 'glaxo%'"#;
+    execute_sql(&sql, pool).await?;
+
+    let sql = r#"update sec.other_sec_ids set sponsor = regexp_replace(sponsor, ' bv$', '', 'g') where sponsor ~ ' bv$'"#;
+    execute_sql(&sql, pool).await?;
+
+    let sql = r#"update sec.other_sec_ids set sponsor = regexp_replace(sponsor, ' as$', '', 'g') where sponsor ~ ' as$'"#;
+    execute_sql(&sql, pool).await?;
+
+    let sql = r#"update sec.other_sec_ids set sponsor = regexp_replace(sponsor, ' a s$', '', 'g') where sponsor ~ ' a s$'"#;
+    execute_sql(&sql, pool).await?;
+
+    let sql = r#"update sec.other_sec_ids set sponsor = regexp_replace(sponsor, ' pvt$', '', 'g') where sponsor ~ ' pvt$'"#;
+    execute_sql(&sql, pool).await?;
+
+    let sql = r#"update sec.other_sec_ids set sponsor = regexp_replace(sponsor, ' limited$', '', 'g') where sponsor ~ ' limited$'"#;
+    execute_sql(&sql, pool).await?;
+
+    let sql = r#"update sec.other_sec_ids set sponsor = regexp_replace(sponsor, ' gmbh co kg$', '', 'g') where sponsor ~ ' gmbh co kg$'"#;
+    execute_sql(&sql, pool).await?;
+
+    Ok(())
+}
+
+
+
 pub async fn setup_sponsor_id_processing(pool: &Pool<Postgres>) -> Result<Vec<LinkedRec>, AppError> {
 
     let sql = r#"SET client_min_messages TO WARNING;
@@ -220,7 +288,6 @@ pub async fn complete_sponsor_id_processing(pool: &Pool<Postgres>) -> Result<u64
         truncate table sec.new_recs;"#;
     execute_sql(&sql, pool).await
 }
-
 
 
 pub async fn process_links(recs: Vec<LinkedRec>, pool: &Pool<Postgres>) -> Result<usize, AppError> {
@@ -436,6 +503,51 @@ pub async fn replace_remaining_dutch_links(pool: &Pool<Postgres>) -> Result<(u64
     let n2 = execute_sql(sql, pool).await?;
 
     Ok((n1, n2))
+}
+
+
+/* 
+// One off use to obtain data
+
+pub async fn import_ctg_obsolete_ids(pool: &Pool<Postgres>) -> Result<(), AppError> {
+
+    let sql = r#"SET client_min_messages TO WARNING;
+        drop table if exists dat.obsolete_ctg_ids;
+        create table dat.obsolete_ctg_ids (
+          obsolete_id   varchar 
+        , new_id        varchar
+        );"#;
+    execute_sql(sql, pool).await?;
+
+    let sql = r#"insert into dat.obsolete_ctg_ids (obsolete_id, new_id)
+        SELECT id_value as obsolete_id, sd_sid as new_id FROM aact_ad.study_identifiers
+            where id_type_id in (180)
+            order by id_value;"#;
+    execute_sql(sql, pool).await?;
+
+    Ok(())
+}
+*/
+
+pub async fn process_ctg_obsolete_ids(pool: &Pool<Postgres>) -> Result<(u64, u64), AppError> {
+
+    let sql = r#"delete from sec.same_tr_sec_ids s
+        using dat.obsolete_ctg_ids b
+        where s.pri_sid = b.new_id and s.sec_sid = b.obsolete_id;"#;
+    let n1 = execute_sql(sql, pool).await?;
+
+    let sql = r#"delete from sec.same_tr_sec_ids s
+        using dat.obsolete_ctg_ids b
+        where s.pri_sid = b.obsolete_id and s.sec_sid = b.new_id;"#;
+    let n2 = execute_sql(sql, pool).await?;
+
+    let sql = r#"update sec.tr_ids t
+        set p_sid = b.new_id
+        from dat.obsolete_ctg_ids b
+        where t.p_sid = b.obsolete_id;"#;
+    let n3 = execute_sql(sql, pool).await?;
+
+    Ok((n1 + n2, n3))
 }
 
 

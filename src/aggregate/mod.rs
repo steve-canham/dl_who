@@ -52,6 +52,11 @@ pub async fn identify_linked_studies(pool: &Pool<Postgres>) -> Result<(), AppErr
     // consist of studies from different registries. Otherwise the common sponsor / sponsor id may in
     // fact relate to a funding or research programme id.
     // N.B. At this stage unambiguous sponsor identification is incomplete, so some links may be missing.
+    
+    // First do some additional processing of sponsor names and sponsor ids
+    // Take off extraneous characters around the ids
+    dedup::tidy_other_sec_ids(pool).await?;
+    dedup::tidy_sponsor_names(pool).await?;
 
     let links = dedup::setup_sponsor_id_processing(pool).await?;
     let n = dedup::process_links(links, pool).await?;
@@ -90,11 +95,11 @@ pub async fn identify_linked_studies(pool: &Pool<Postgres>) -> Result<(), AppErr
     info!("");
 
     // A large chunk of the linked study ids are from the Dutch trial registry,
-    // which for many studies has 1 or 2 old registry ids. These need to be removed 
+    // which for many studies has 1 or 2 additional old registry ids. These need to be removed 
     // to a separate table.
-    // Once there they can be used to update any reference to the old ids (linking to 
-    // non Dutch ids) by replacing them with the equivalent new id. N.N. In some cases 
-    // the old dutch id links to 2 new NL-OMON ids.
+    // Once there they can be used to update any reference to the old ids (i.e. if linked to 
+    // non Dutch ids) by replacing them with the equivalent new id. N.B. In some cases 
+    // the old dutch id links appears to 2 new NL-OMON ids.
 
     let n = dedup::remove_old_dutch_links(pool).await?;
     info!("{} records with links between old (NTR, NL) and new (OMON) Dutch ids removed", n);
@@ -112,17 +117,32 @@ pub async fn identify_linked_studies(pool: &Pool<Postgres>) -> Result<(), AppErr
     // WHO data that differentiates them from other NCT Ids. Fortunately other sources, 
     // in particular the AACT database version of the CTG data, can be used to retrieve
     // the 3300 obsolete NCT ids and their corresponing new values (this list is presumed 
-    // to be fixed now). These values are imported have ben importedinto the ???? db.schema
-    // as a static resource.
+    // to be fixed now). These values have been importe into the 'dat' schema as a static resource.
 
+    //One off - now done
+    //ftw::set_up_schema("aact.ad", pool).await?;
+    //dedup::import_ctg_obsolete_ids(pool).await?;
+    //ftw::drop_schema("aact_ad", pool).await?;
+    
+    // The obsolete CTG ids are used to remove the corresponding values from the 'same_tr'
+    // table, and then used to replace any obsolete ids in the preferred or non preferred 
+    // columns with their new equivalents. This may involve re-organising and dealing with 
+    // duplications.
 
-
+    let (n1, n2) = dedup::process_ctg_obsolete_ids(pool).await?;
+    info!("{} links in same_tr table removed as covered by obsolete ctg ids list", n1);
+    info!("{} links to obsolete ctg ids replaced by refernce to the new ids", n2);
+    let (nb, na) = dedup::remove_duplicate_tr_id_records(pool).await?;
+    info!("{} duplicate tr_id records removed", nb - na);
+    let n = dedup::get_table_record_count("sec.tr_ids", pool).await?;
+    info!("{} distinct links between study ids available", n);
+    info!("");
 
     // In some cases the relationships between studies is 1:n rather than 1:1, 
     // i.e. a study registered in one trial registry is equivalent to 2 or more 
     // studies in another registry. In these situations the '1' study (but not the 'n') can
     // be marked as a duplicate of the 'n' studies, and all the 1:n records should be 
-    // removed from the list of links inmto a separate table - i.e. they should not be 
+    // removed from the list of links into a separate table - i.e. they should not be 
     // processed further. This shoud really be recorded as a separate type of 
     // inter-study relationship, as it was in the crMDR.
      
@@ -197,7 +217,7 @@ pub async fn aggregate_who_data(pool: &Pool<Postgres>) -> Result<(), AppError> {
 */
     
 
-    ftw::set_up_schema("cxt.lups", pool).await?;
+    //ftw::set_up_schema("cxt.lups", pool).await?;
     ftw::set_up_schema("cxt.locs", pool).await?;
     
     data_access::set_up_data_grids(pool).await?;

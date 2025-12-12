@@ -967,41 +967,107 @@ pub fn process_sponsor_name(sponsor: &Option<String>) -> Option<String> {
 pub fn  split_ids(sd_sid: &String, in_string: &String, source_field: &str) -> Vec<SecondaryId> {
         
     // in_string already known to be non-null, non-empty.
+    // most common way of splitting a list of Ids is on a semi-colon.
 
     let ids: Vec<&str> = in_string.split(";").collect();
-    let mut id_list = Vec::<SecondaryId>::new();
+    static RE_NTRB: LazyLock<Regex> = LazyLock::new(|| Regex::new(r" \(NTR\d{2}").unwrap());
 
-    for s in ids
+    let mut revised_ids: Vec<String> = Vec::new();
+    for s in ids.clone()  // Usually only 1, 2 or 3 's' entries
     {
-        let complex_trim = |c| c==' '|| c =='\''|| c ==';'|| c=='‘'|| c=='’';
-        let secid = s.trim_matches(complex_trim);
+        let mut this_s = s.to_string();
 
-        if secid.len() >= 3 && secid != sd_sid
-        {
+        // Where sec_id matches ' \(NTR\d{2}' replace ' (NTR' with ', NTR).
+
+        if s.contains("(NTR") && RE_NTRB.is_match(s) {
+            this_s = s.replace(" (NTR", ", NTR").replace(")", "");
+        }
+
+        if this_s.contains(",") {
+
+            // terms may contain multiple ids separated by 1 or more commas, 
+            // with the order of id types varying and inconsistent
+
+            if this_s.contains(", NTR") {
+                 this_s = this_s.replace(", NTR", "||NTR");
+            }
+            if this_s.contains(", NL") { 
+                 this_s = this_s.replace(", NL", "||NL");
+            }
+            if this_s.contains(", NIHR") { 
+                 this_s = this_s.replace(", NIHR", "||NIHR");
+            }
+            if this_s.contains(", CPMS") {
+                this_s = this_s.replace(", CPMS", "||CPMS");
+            }
+            if this_s.contains(", IRAS") {
+                 this_s = this_s.replace(", IRAS", "||IRAS");
+            }
+
+            // Split on the pipe to form separate portions of the string
+            let split_ids: Vec<&str> = this_s.split("||").collect();
+            let mut new_ids: Vec<String> = split_ids.iter().map(|&s| s.to_string()).collect();
+
+            // add the set (may be the original if no '|') to the revised_ids
+            revised_ids.append(&mut new_ids);
+
+        }
+        else {
+            revised_ids.push(this_s);
+        }
+
+    }
+
+    // end up with id list extended if necessary
+
+    let mut id_list = Vec::<SecondaryId>::new();
+    for s in revised_ids
+    {
+        let chars_to_trim: &[char] = &[' ', '\'', ':', '#', ';', '.', '‘', '’'];
+        let secid = s.trim_matches(chars_to_trim);
+
+        if secid != sd_sid {
+
             let secid_low = secid.to_lowercase();
-            if secid_low.chars().any(|c| c.is_digit(10))    // has to include at least 1 number
-                && !secid_low.starts_with("none")
-                && !secid_low.starts_with("nil")
-                && !secid_low.starts_with("not ")
-                && !secid_low.starts_with("date")
-                && !secid_low.starts_with("version")
-                && !secid_low.starts_with("??")
-            {
-                let sec_id_base = get_sec_id_details(secid);
-                
-                // Is the id the same as the sid? (With EUCTR may be, 
-                // because it is simply anoher country code variation)
 
-                if sec_id_base.processed_id != sd_sid.to_string() && sec_id_base.sec_id_type_id != 0
-                {
+            // Check first it is a possible id
+
+            if !secid_low.starts_with("none") && !secid_low.starts_with("nil")
+                && !secid_low.starts_with("not ") && !secid_low.starts_with("date")
+                && !secid_low.starts_with("??") 
+            {
+                // To be worth processing and looking for has to include at least 1 number and be of reasonable length.
+
+                if secid_low.chars().any(|c| c.is_digit(10)) && secid.len() >= 4 {
+
+                    let sec_id_base = get_sec_id_details(secid);
+                    
+                    // Is the id the same as the sid? (With EUCTR may be, 
+                    // because it is simply anoher country code variation)
+                    // Also check not 0 (as may be if the is is nonsensical)
+
+                    if sec_id_base.processed_id != sd_sid.to_string() && sec_id_base.sec_id_type_id != 0
+                    {
+                        id_list.push(SecondaryId::new_from_base(source_field.to_string(), 
+                                                    secid.to_string(), sec_id_base));
+                    }
+                }
+                else {    // very small sec_id
+
+                    let sec_id_base = SecIdBase{
+                        processed_id: secid.to_string(),
+                        sec_id_type_id: 990,
+                    };
+
                     id_list.push(SecondaryId::new_from_base(source_field.to_string(), 
-                                                secid.to_string(), sec_id_base));
+                                                        secid.to_string(), sec_id_base));
                 }
             }
         }
     }
 
     id_list  // may overlap ids with the ids from the other source fields
+
 }
 
 
@@ -1032,13 +1098,19 @@ pub fn get_sec_id_details(sec_id: &str) -> SecIdBase {
             if sid.is_none() {
                 sid = contains_jcrt(sec_id);  
                 if sid.is_none() {
-                    sid = contains_jprn(sec_id);  
+                    sid = contains_japic(sec_id);  
                     if sid.is_none() {
-                        sid = contains_nl(sec_id);
+                        sid = contains_jma(sec_id);      
                         if sid.is_none() {
-                            sid = contains_ntr(sec_id);
+                            sid = contains_jprn(sec_id);  
                             if sid.is_none() {
-                                sid = contains_rpuec(sec_id);
+                                sid = contains_nl(sec_id);
+                                if sid.is_none() {
+                                    sid = contains_ntr(sec_id);
+                                    if sid.is_none() {
+                                        sid = contains_rpuec(sec_id);
+                                    }
+                                }
                             }
                         }
                     }
@@ -1312,6 +1384,47 @@ fn contains_jcrt(hay: &str) -> Option<SecIdBase> {
         None
     }
 }
+
+
+fn contains_japic(hay: &str) -> Option<SecIdBase> {
+    if hay.starts_with("Japic") {
+        static RE_JAPIC: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^JapicCTI-\d{6}$").unwrap());
+        match RE_JAPIC.captures(hay) {
+            Some(s) => {
+                let id = &s[0];
+                Some(SecIdBase{
+                    processed_id: id.to_string(),
+                    sec_id_type_id: 139,
+                })
+            },
+            None => None,
+        }
+    }
+    else {
+        None
+    }
+}
+
+
+fn contains_jma(hay: &str) -> Option<SecIdBase> {
+    if hay.starts_with("JMA") {
+        static RE_JMA: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^JMA-IIA\d{5}$").unwrap());
+        match RE_JMA.captures(hay) {
+            Some(s) => {
+                let id = &s[0];
+                Some(SecIdBase{
+                    processed_id: id.to_string(),
+                    sec_id_type_id: 138,
+                })
+            },
+            None => None,
+        }
+    }
+    else {
+        None
+    }
+}
+
 
 fn contains_jprn(hay: &str) -> Option<SecIdBase> {
     if hay.starts_with("JPRN") {
