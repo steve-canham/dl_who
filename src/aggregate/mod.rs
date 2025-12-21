@@ -52,9 +52,8 @@ pub async fn identify_linked_studies(pool: &Pool<Postgres>) -> Result<(), AppErr
     // consist of studies from different registries. Otherwise the common sponsor / sponsor id may in
     // fact relate to a funding or research programme id.
     // N.B. At this stage unambiguous sponsor identification is incomplete, so some links may be missing.
-    
-    // First do some additional processing of sponsor names and sponsor ids
-    // Take off extraneous characters around the ids
+    // First do some additional processing of sponsor names and sponsor ids, before processing the links.
+
     dedup::tidy_other_sec_ids(pool).await?;
     dedup::tidy_sponsor_names(pool).await?;
 
@@ -68,11 +67,11 @@ pub async fn identify_linked_studies(pool: &Pool<Postgres>) -> Result<(), AppErr
 
     // Extract the secondary ids that have the same source TR into separate table.
     // These refer to studies that are related rather than equivalences, though
-    // the nature of the relationshipo is unclear. In some cases, (e.g. for CTG and the Dutch
-    // registry), same registry links maty refer to new sids being supplied within the
-    // registry for a single study (this needs further work)
+    // the nature of the relationshipo is unclear from the WHO data. In some cases, 
+    // e.g. for CTG and the Dutch registry), same registry links maty refer to new sids 
+    // being supplied within the registry for a single study (this is dealt with below).
 
-    info!("{} links between srtudies in the same registry separated out", n);
+    info!("{} links between studies in the same registry separated out", n);
     let n = dedup::get_table_record_count("sec.initial_tr_sec_ids", pool).await?;
     info!("{} links between study ids in different trial registries discovered", n);
     info!("");
@@ -117,7 +116,7 @@ pub async fn identify_linked_studies(pool: &Pool<Postgres>) -> Result<(), AppErr
     // WHO data that differentiates them from other NCT Ids. Fortunately other sources, 
     // in particular the AACT database version of the CTG data, can be used to retrieve
     // the 3300 obsolete NCT ids and their corresponing new values (this list is presumed 
-    // to be fixed now). These values have been importe into the 'dat' schema as a static resource.
+    // to be fixed now). These values have been imported into the 'dat' schema as a static resource.
 
     //One off - now done
     //ftw::set_up_schema("aact.ad", pool).await?;
@@ -146,11 +145,12 @@ pub async fn identify_linked_studies(pool: &Pool<Postgres>) -> Result<(), AppErr
     // processed further. This shoud really be recorded as a separate type of 
     // inter-study relationship, as it was in the crMDR.
      
+    
 
 
 
     // n:n links may also occur, though these are relatively rare. 
-    // For further exploration.
+    // This needs further exploration.
 
 
 

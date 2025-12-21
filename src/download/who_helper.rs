@@ -1008,7 +1008,7 @@ pub fn  split_ids(sd_sid: &String, in_string: &String, source_field: &str) -> Ve
             let split_ids: Vec<&str> = this_s.split("||").collect();
             let mut new_ids: Vec<String> = split_ids.iter().map(|&s| s.to_string()).collect();
 
-            // add the set (may be the original if no '|') to the revised_ids
+            // add the set (may be the original if no '||') to the revised_ids
             revised_ids.append(&mut new_ids);
 
         }
@@ -1123,90 +1123,6 @@ pub fn get_sec_id_details(sec_id: &str) -> SecIdBase {
     }
 }
 
-/* 
-        //let mut sid = contains_nct(sec_id);
-        if sid.is_none() {
-            sid = contains_euctr(sec_id);
-            if sid.is_none() {
-                sid = contains_isrctn(sec_id);
-                if sid.is_none() {
-                    sid = contains_actrn(sec_id);
-                    if sid.is_none() {
-                        sid = contains_drks(sec_id);
-                        if sid.is_none() {
-                            sid = contains_ctri(sec_id);
-                            if sid.is_none() {
-                                sid = contains_who(sec_id);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        if sid.is_none() {
-            sid = contains_umin(sec_id);
-            if sid.is_none() {
-                sid = contains_jcrt(sec_id);  
-                if sid.is_none() {
-                    sid = contains_japic(sec_id);  
-                    if sid.is_none() {
-                        sid = contains_jma(sec_id);      
-                        if sid.is_none() {
-                            sid = contains_jprn(sec_id);  
-                            if sid.is_none() {
-                                sid = contains_nl(sec_id);
-                                if sid.is_none() {
-                                    sid = contains_ntr(sec_id);
-                                    if sid.is_none() {
-                                        sid = contains_rpuec(sec_id);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-               
-        if sid.is_none() {    // still...
-            
-            let upid = sec_id.to_uppercase();
-            let sec_id_type_id = match upid {
-            _ if upid.starts_with("CHICTR") => 118,
-            _ if upid.starts_with("IRCT") => 125,
-            _ if upid.starts_with("KCT") =>  119,
-            _ if upid.starts_with("RBR") => 117, 
-            _ if upid.starts_with("RPCEC") => 122,
-            _ if upid.starts_with("PACTR") => 128,
-            _ if upid.starts_with("SLCTR") => 130,
-            _ if upid.starts_with("TCTR") => 131,
-            _ if upid.starts_with("LBCTR") => 133,
-            _ if upid.starts_with("ITMCTR") => 134,
-            _ if upid.starts_with("CHIMCTR") => 134,
-            _ => 0
-            };
-
-            if sec_id_type_id > 0 {
-                sid = Some(SecIdBase{
-                    processed_id: sec_id.to_string(),
-                    sec_id_type_id: sec_id_type_id,
-                })
-            }
-        }
-              
-        if sid.is_none() {
-            
-            // Return the original secondary id without any identified type.
-
-            sid = Some(SecIdBase{
-                processed_id: sec_id.to_string(),
-                sec_id_type_id: 990,
-            })
-        }
-        
-        sid.unwrap()   // always has a value
-*/
 
     
 // Collection of regex check functions, where the regex is stored

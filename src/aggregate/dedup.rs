@@ -1,5 +1,6 @@
 use sqlx::{Pool, Postgres};
 use crate::AppError;
+use log::info;
 
 use super::structs::{BasTable, LinkedRec, OutputRec, OutputRecs};
 
@@ -158,67 +159,85 @@ pub async fn complete_utn_processing(pool: &Pool<Postgres>) -> Result<u64, AppEr
 
 
 pub async fn tidy_other_sec_ids(pool: &Pool<Postgres>) -> Result<(), AppError> {
-    
-    let sql = r#"update sec.other_sec_ids set sec_id = regexp_replace(sec_id, '\.$', '', 'g') where sec_id ~ '\.$'"#;
-    execute_sql(&sql, pool).await?;
+     
+    // Remove ids consisting only of 0s and / or '-'s and / or aspaces.
 
-    let sql = r#"update sec.other_sec_ids set sec_id = regexp_replace(sec_id, '^\:', '', 'g') where sec_id ~ '^\:'"#;
-    execute_sql(&sql, pool).await?;
+    let sql = r#"delete from sec.other_sec_ids where sec_id ~ '^[0\- ]+$'"#;
+    let n1 = execute_sql(&sql, pool).await?;
 
-    let sql = r#"update sec.other_sec_ids set sec_id = regexp_replace(sec_id, '^#', '', 'g') where sec_id ~ '^#'"#;
-    execute_sql(&sql, pool).await?;
+    // Remove ids consisting only of letters and / or '-'s and / or aspaces.
 
-    let sql = r#"update sec.other_sec_ids set sec_id = trim(sec_id) where sec_id ~ '^ '"#;
-    execute_sql(&sql, pool).await?;
+    let sql = r#"delete from sec.other_sec_ids where sec_id ~ '^[A-Za-z -]+$'"#;
+    let n2 = execute_sql(&sql, pool).await?;
+
+    // Remove very short ids.
+
+    let sql = r#"delete from sec.other_sec_ids where length(sec_id) < 4"#;
+    let n3 = execute_sql(&sql, pool).await?;
+
+    info!("{} records removed from sec.other_ids", n1 + n2 + n3);
+
     Ok(())
 }
 
 
 pub async fn tidy_sponsor_names(pool: &Pool<Postgres>) -> Result<(), AppError> {
     
-    let sql = r#"delete from sec.other_sec_ids
-        where sec_id ~ '^[0\- ]+$'"#;
-    execute_sql(&sql, pool).await?;
+    // These are in addition to the name tidying carried out during the initial production of the data tables.
+    // (Some of the processing below could be moved to that processing in the future).
+       
+    // Tidy up some common pharma names.
 
-    let sql = r#"update sec.other_sec_ids
-        set sponsor = 'wyeth (now part of pfizer)'
+    let sql = r#"update sec.other_sec_ids set sponsor = 'wyeth (now part of pfizer)'
         where sponsor like 'wyeth%'"#;
-    execute_sql(&sql, pool).await?;
+    let n1 = execute_sql(&sql, pool).await?;
 
-    let sql = r#"update sec.other_sec_ids
-        set sponsor = 'novartis'
+    let sql = r#"update sec.other_sec_ids set sponsor = 'novartis'
         where sponsor like 'novartis pharma%'
         or sponsor like 'novartis farma%'
         or sponsor like 'novartis health%'"#;
-    execute_sql(&sql, pool).await?;
+    let n2 = execute_sql(&sql, pool).await?;
 
-    let sql = r#"update sec.other_sec_ids
-        set sponsor = 'novo nordisk'
+    let sql = r#"update sec.other_sec_ids set sponsor = 'novo nordisk'
         where sponsor like 'novo nordisk%'"#;
-    execute_sql(&sql, pool).await?;
+    let n3 = execute_sql(&sql, pool).await?;
 
-    let sql = r#"update sec.other_sec_ids
-        set sponsor = 'glaxosmithkline'
+    let sql = r#"update sec.other_sec_ids set sponsor = 'glaxosmithkline'
         where sponsor like 'glaxo%'"#;
-    execute_sql(&sql, pool).await?;
+    let n4 = execute_sql(&sql, pool).await?;
+
+    let sql = r#"update sec.other_sec_ids set sponsor = 'abbvie'
+        where sponsor like '%abbvie%'"#;
+    let n5 = execute_sql(&sql, pool).await?;
+
+    let sql = r#"update sec.other_sec_ids set sponsor = 'takeda'
+        where sponsor like '%takeda%'
+        and sponsor not like '%hospital%'"#;
+    let n6 = execute_sql(&sql, pool).await?;
+
+    info!("{} records updated by simplifying sponsor name in sec.other_ids", n1 + n2 + n3 + n4 + n5 + n6);
+
+    // Remove the following suffixes, that all denote commercial company status
 
     let sql = r#"update sec.other_sec_ids set sponsor = regexp_replace(sponsor, ' bv$', '', 'g') where sponsor ~ ' bv$'"#;
-    execute_sql(&sql, pool).await?;
+    let n1 = execute_sql(&sql, pool).await?;
 
     let sql = r#"update sec.other_sec_ids set sponsor = regexp_replace(sponsor, ' as$', '', 'g') where sponsor ~ ' as$'"#;
-    execute_sql(&sql, pool).await?;
+    let n2 = execute_sql(&sql, pool).await?;
 
     let sql = r#"update sec.other_sec_ids set sponsor = regexp_replace(sponsor, ' a s$', '', 'g') where sponsor ~ ' a s$'"#;
-    execute_sql(&sql, pool).await?;
+    let n3 = execute_sql(&sql, pool).await?;
 
     let sql = r#"update sec.other_sec_ids set sponsor = regexp_replace(sponsor, ' pvt$', '', 'g') where sponsor ~ ' pvt$'"#;
-    execute_sql(&sql, pool).await?;
+    let n4 = execute_sql(&sql, pool).await?;
 
     let sql = r#"update sec.other_sec_ids set sponsor = regexp_replace(sponsor, ' limited$', '', 'g') where sponsor ~ ' limited$'"#;
-    execute_sql(&sql, pool).await?;
+    let n5 = execute_sql(&sql, pool).await?;
 
     let sql = r#"update sec.other_sec_ids set sponsor = regexp_replace(sponsor, ' gmbh co kg$', '', 'g') where sponsor ~ ' gmbh co kg$'"#;
-    execute_sql(&sql, pool).await?;
+    let n6 = execute_sql(&sql, pool).await?;
+
+    info!("{} records updated by removing company suffix in sec.other_ids", n1 + n2 + n3 + n4 + n5 + n6);
 
     Ok(())
 }
@@ -251,7 +270,7 @@ pub async fn setup_sponsor_id_processing(pool: &Pool<Postgres>) -> Result<Vec<Li
         select sponsor, sec_id, count(pri_sid), count(distinct pri_sid_type)
         from sec.other_sec_ids
         where length(sec_id) > 4
-        and sec_id not in ('000000', '0000-00000', '11111')
+        and sec_id not in ('11111')
         group by sponsor, sec_id
         having count(pri_sid) > 1  
         and count(distinct pri_sid_type) = count(pri_sid)
